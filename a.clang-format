@@ -1,0 +1,16 @@
+---
+Language: Cpp
+BasedOnStyle: LLVM
+
+# This forces a line break before braces for almost all contexts (Allman style)
+BreakBeforeBraces: Allman
+BinPackParameters: false
+AllowShortFunctionsOnASingleLine: None
+AccessModifierOffset: -4
+IndentAccessModifiers: true
+IndentWidth: 4
+TabWidth: 4 
+UseTab: Never
+ColumnLimit: 150
+
+---
