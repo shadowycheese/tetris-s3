@@ -6,11 +6,11 @@
 #include <stdint.h>
 
 #define PIN_R1 GPIO_NUM_8
-#define PIN_G1 GPIO_NUM_14
-#define PIN_B1 GPIO_NUM_13
+#define PIN_G1 GPIO_NUM_13
+#define PIN_B1 GPIO_NUM_14
 #define PIN_R2 GPIO_NUM_12
-#define PIN_G2 GPIO_NUM_11
-#define PIN_B2 GPIO_NUM_10
+#define PIN_G2 GPIO_NUM_10
+#define PIN_B2 GPIO_NUM_11
 #define PIN_CLK GPIO_NUM_9
 #define PIN_LAT GPIO_NUM_3
 #define PIN_OE GPIO_NUM_5
@@ -27,16 +27,17 @@ public:
         uint32_t clock_div_num; // PCLK = PLL_F160M / clock_div_num (>= 2)
         bool clk_invert;        // true if the panel wants inverted CLK polarity
         bool swap_byte_order;   // set LCD_CAM lcd_8bits_order if bytes come out swapped
-        int oe_start;           // first column where outputs are enabled (0..63)
-        int oe_end;             // one-past-last column where outputs are enabled
     };
 
     static constexpr int _width = 64;
     static constexpr int _height = 32;
-    static constexpr int _row_groups = 16;
+    static constexpr int _rows = 16;
     static constexpr int _row_words = _width;
-    static constexpr int _dma_words = _row_groups * _row_words;
+    static constexpr int _dma_words = _rows * _row_words;
     static constexpr int _dma_bytes = _dma_words * sizeof(uint16_t);
+
+    static constexpr int _oe_start = 0;
+    static constexpr int _oe_end = _width - 1;
 
     Hub75Driver();
     ~Hub75Driver();

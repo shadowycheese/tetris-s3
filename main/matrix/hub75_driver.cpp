@@ -22,6 +22,28 @@ Hub75Driver::~Hub75Driver()
     deinit();
 }
 
+void Hub75Driver::deinit()
+{
+    stop();
+    if (_dma_chan)
+    {
+        gdma_disconnect((gdma_channel_handle_t)_dma_chan);
+        gdma_del_channel((gdma_channel_handle_t)_dma_chan);
+        _dma_chan = nullptr;
+    }
+    if (_descriptors)
+    {
+        heap_caps_free(_descriptors);
+        _descriptors = nullptr;
+    }
+    if (_dma_buf)
+    {
+        heap_caps_free(_dma_buf);
+        _dma_buf = nullptr;
+    }
+    periph_module_disable(PERIPH_LCD_CAM_MODULE);
+}
+
 bool Hub75Driver::init(const Hub75DriverConfig &cfg)
 {
     _driver_cfg = cfg;
@@ -75,40 +97,15 @@ bool Hub75Driver::init(const Hub75DriverConfig &cfg)
     encode_frame(nullptr); // blank
 
     start();
-    ESP_LOGI(TAG, "Running: %lu Hz clock, OE window [%d,%d)",
-             (unsigned long)(160000000 / _driver_cfg.clock_div_num),
-             _driver_cfg.oe_start,
-             _driver_cfg.oe_end);
+    ESP_LOGI(TAG, "Running: %lu Hz clock", (unsigned long)(160000000 / _driver_cfg.clock_div_num));
 
     return true;
-}
-
-void Hub75Driver::deinit()
-{
-    stop();
-    if (_dma_chan)
-    {
-        gdma_disconnect((gdma_channel_handle_t)_dma_chan);
-        gdma_del_channel((gdma_channel_handle_t)_dma_chan);
-        _dma_chan = nullptr;
-    }
-    if (_descriptors)
-    {
-        heap_caps_free(_descriptors);
-        _descriptors = nullptr;
-    }
-    if (_dma_buf)
-    {
-        heap_caps_free(_dma_buf);
-        _dma_buf = nullptr;
-    }
-    periph_module_disable(PERIPH_LCD_CAM_MODULE);
 }
 
 void Hub75Driver::configure_lcd_clock()
 {
     LCD_CAM.lcd_clock.lcd_clk_sel = 3;     // PLL_F160M source
-    LCD_CAM.lcd_clock.lcd_ck_out_edge = 0; // PCLK low in first half of cycle
+    LCD_CAM.lcd_clock.lcd_ck_out_edge = 1; // PCLK low in first half of cycle
     LCD_CAM.lcd_clock.lcd_ck_idle_edge = _driver_cfg.clk_invert ? 1 : 0;
     LCD_CAM.lcd_clock.lcd_clkcnt_n = 1;
     LCD_CAM.lcd_clock.lcd_clk_equ_sysclk = 1; // integer divider only
@@ -181,7 +178,7 @@ bool Hub75Driver::allocate_dma()
         return false;
     }
 
-    _descriptors = heap_caps_aligned_calloc(16, _row_groups, sizeof(dma_descriptor_t), MALLOC_CAP_DMA);
+    _descriptors = heap_caps_aligned_calloc(16, _rows, sizeof(dma_descriptor_t), MALLOC_CAP_DMA);
     if (!_descriptors)
     {
         ESP_LOGE(TAG, "no descriptor memory");
@@ -193,14 +190,14 @@ bool Hub75Driver::allocate_dma()
 void Hub75Driver::build_descriptors()
 {
     dma_descriptor_t *desc = (dma_descriptor_t *)_descriptors;
-    for (int g = 0; g < _row_groups; g++)
+    for (int g = 0; g < _rows; g++)
     {
         desc[g].dw0.size = _row_words * sizeof(uint16_t);
         desc[g].dw0.length = _row_words * sizeof(uint16_t);
         desc[g].dw0.owner = DMA_DESCRIPTOR_BUFFER_OWNER_DMA;
-        desc[g].dw0.suc_eof = (g == _row_groups - 1);
+        desc[g].dw0.suc_eof = (g == _rows - 1);
         desc[g].buffer = (uint8_t *)&_dma_buf[g * _row_words];
-        desc[g].next = (g == _row_groups - 1) ? &desc[0] : &desc[g + 1];
+        desc[g].next = (g == _rows - 1) ? &desc[0] : &desc[g + 1];
     }
 }
 
@@ -209,21 +206,22 @@ void Hub75Driver::encode_frame(const uint8_t *fb)
     constexpr uint8_t rgbMask = 0x07; // bit0=R bit1=G bit2=B
     const uint16_t blank = (1u << BitOE);
 
-    for (int g = 0; g < _row_groups; g++)
+    for (int g = 0; g < _rows; g++)
     {
-        const uint16_t base = ((uint16_t)g << AddrShift);
+        const uint16_t row_addr = ((uint16_t)(g - 1) << AddrShift);
+
         for (int x = 0; x < _row_words; x++)
         {
-            uint16_t w = base | blank;
-            if (x >= _driver_cfg.oe_start && x < _driver_cfg.oe_end)
+            uint16_t w = row_addr | blank;
+            if (x < _oe_end)
             {
-                w &= ~(1u << BitOE); // outputs enabled during this window
+                w &= ~(1u << BitOE);
             }
 
             if (fb)
             {
-                const uint8_t top = g; // (fb[(size_t)g * kWidth + x] & kRgbMask);                // rows 0..15
-                const uint8_t bot = x; //(fb[(size_t)(g + kRowGroups) * kWidth + x] & kRgbMask); // rows 16..31
+                const uint8_t top = (fb[(size_t)g * _width + x] & rgbMask);           // rows 0..15
+                const uint8_t bot = (fb[(size_t)(g + _rows) * _width + x] & rgbMask); // rows 16..31
                 w |= (top & 1) ? (1 << BitR1) : 0;
                 w |= (top & 2) ? (1 << BitG1) : 0;
                 w |= (top & 4) ? (1 << BitB1) : 0;
@@ -236,6 +234,7 @@ void Hub75Driver::encode_frame(const uint8_t *fb)
             {
                 w |= (1u << BitLAT); // latch at end of shift
             }
+
             _dma_buf[g * _row_words + x] = w;
         }
     }
