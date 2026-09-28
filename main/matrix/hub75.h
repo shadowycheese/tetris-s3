@@ -9,13 +9,16 @@
 #define PANEL_HEIGHT 32
 
 #define COL_BLACK 0x00
-#define COL_RED 0x01
-#define COL_GREEN 0x02
-#define COL_BLUE 0x04
-#define COL_CYAN 0x03
-#define COL_MAGENTA 0x05
-#define COL_YELLOW 0x06
-#define COL_WHITE 0x07
+#define COL_RED 0x30
+#define COL_GREEN 0x0C
+#define COL_BLUE 0x03
+#define COL_CYAN (COL_GREEN | COL_BLUE)
+#define COL_MAGENTA (COL_RED | COL_BLUE)
+#define COL_YELLOW (COL_RED | COL_GREEN)
+#define COL_WHITE (COL_RED | COL_BLUE | COL_GREEN)
+#define COL_ORANGE 0x34
+#define COL_LIGHT_GREY 0x2A
+#define COL_DARK_GREY 0x15
 
 class Hub75
 {

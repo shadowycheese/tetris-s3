@@ -98,8 +98,8 @@ public:
     }
 
     void init();
-    bool input(void);        // Returns false signaling game exit.
-    bool update(double now); // Returns false signaling game over.
+    bool input(uint32_t button_mask); // Returns false signaling game exit.
+    bool update(double now);          // Returns false signaling game over.
     void render(double now);
 
 private:
@@ -154,9 +154,11 @@ private:
     void ui_main_grid_shape_write(shape_t shape);
     void ui_main_grid_draw(float dt);
 
-    void ui_shape_draw(ui_shape_t *ui_shape, int col_ind,
-                       uint64_t origin_x, uint64_t origin_y,
-                       uint64_t cell_size, float dt);
+    void ui_shape_draw(ui_shape_t *ui_shape, int col_ind, int origin_x, int origin_y, int cell_size, float dt);
+    void ui_rect_draw(rectangle_t rect, uint8_t base_color, bool outline, const animation_t *anim);
+
+    void hard_drop_trail_set(shape_t shape, coord_t from, coord_t to);
+    void hard_drop_trail_draw(float dt);
 
     bool event_new_shape_handle(tetris_event_t ev);
     void event_soft_drop_handle(tetris_event_t ev);
@@ -166,8 +168,8 @@ private:
 
     bool event_handle(tetris_event_t ev);
 
-    void state_init(void);
-    void renderer_init(void);
+    uint8_t color_lerp(uint8_t col1, uint8_t col2, float factor);
+    point_t point_lerp(point_t p1, point_t p2, float factor);
 };
 
 #endif

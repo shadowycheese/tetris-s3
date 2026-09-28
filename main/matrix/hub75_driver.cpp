@@ -203,39 +203,43 @@ void Hub75Driver::build_descriptors()
 
 void Hub75Driver::encode_frame(const uint8_t *fb)
 {
-    constexpr uint8_t rgbMask = 0x07; // bit0=R bit1=G bit2=B
+    constexpr uint8_t rgbMask = 0x3F; // bit0,1=R bit2,3=G bit4,5=B
     const uint16_t blank = (1u << BitOE);
 
     for (int g = 0; g < _rows; g++)
     {
-        const uint16_t row_addr = ((uint16_t)(g - 1) << AddrShift);
-
         for (int x = 0; x < _row_words; x++)
         {
+            int c = x % 64;
+            int p = x / 64;
+
+            uint16_t row_addr = ((uint16_t)(g - (p == 0 ? 1 : 0)) << AddrShift);
             uint16_t w = row_addr | blank;
-            if (x < _oe_end)
+
+            if (c < (_width - 1))
             {
                 w &= ~(1u << BitOE);
             }
 
             if (fb)
             {
-                const uint8_t top = (fb[(size_t)g * _width + x] & rgbMask);           // rows 0..15
-                const uint8_t bot = (fb[(size_t)(g + _rows) * _width + x] & rgbMask); // rows 16..31
-                w |= (top & 1) ? (1 << BitR1) : 0;
-                w |= (top & 2) ? (1 << BitG1) : 0;
-                w |= (top & 4) ? (1 << BitB1) : 0;
-                w |= (bot & 1) ? (1 << BitR2) : 0;
-                w |= (bot & 2) ? (1 << BitG2) : 0;
-                w |= (bot & 4) ? (1 << BitB2) : 0;
+                uint8_t r1 = fb[(size_t)g * _width + c];
+                uint8_t r2 = fb[(size_t)(g + _rows) * _width + c];
+
+                w |= ((r1 >> 4) & 0x3) > p ? (1 << BitR1) : 0;
+                w |= ((r1 >> 2) & 0x3) > p ? (1 << BitG1) : 0;
+                w |= ((r1) & 0x3) > p ? (1 << BitB1) : 0;
+                w |= ((r2 >> 4) & 0x3) > p ? (1 << BitR2) : 0;
+                w |= ((r2 >> 2) & 0x3) > p ? (1 << BitG2) : 0;
+                w |= ((r2) & 0x3) > p ? (1 << BitB2) : 0;
             }
 
-            if (x == _row_words - 1)
+            if (c == (_width - 1))
             {
                 w |= (1u << BitLAT); // latch at end of shift
             }
 
-            _dma_buf[g * _row_words + x] = w;
+            _dma_buf[(g * _row_words) + x] = w;
         }
     }
 }

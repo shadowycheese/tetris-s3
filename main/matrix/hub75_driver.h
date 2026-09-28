@@ -32,7 +32,7 @@ public:
     static constexpr int _width = 64;
     static constexpr int _height = 32;
     static constexpr int _rows = 16;
-    static constexpr int _row_words = _width;
+    static constexpr int _row_words = 3 * _width;
     static constexpr int _dma_words = _rows * _row_words;
     static constexpr int _dma_bytes = _dma_words * sizeof(uint16_t);
 
