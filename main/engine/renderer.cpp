@@ -1,9 +1,11 @@
 #include <inttypes.h>
 #include <stdio.h>
 
-#include "renderer.h"
+#include "events/edt.h"
+#include "engine/renderer.h"
+#include "engine/particles.h"
 
-int Renderer::piece_color(shape_type_t t)
+uint8_t Renderer::piece_color(shape_type_t t)
 {
     switch (t)
     {
@@ -24,55 +26,6 @@ int Renderer::piece_color(shape_type_t t)
     default:
         return 0x15;
     }
-}
-
-uint8_t Renderer::color_lerp(uint8_t col1, uint8_t col2, float factor)
-{
-    if (factor < 0.0f)
-    {
-        factor = 0.0f;
-    }
-    if (factor > 1.0f)
-    {
-        factor = 1.0f;
-    }
-
-    float r1 = (float)((col1 >> 4) & 0x3);
-    float g1 = (float)((col1 >> 2) & 0x3);
-    float b1 = (float)((col1) & 0x3);
-
-    float r2 = (float)((col2 >> 4) & 0x3);
-    float g2 = (float)((col2 >> 2) & 0x3);
-    float b2 = (float)((col2) & 0x3);
-
-    uint8_t r3 = (uint8_t)(r1 + factor * (r2 - r1) + 0.5f);
-    uint8_t g3 = (uint8_t)(g1 + factor * (g2 - g1) + 0.5f);
-    uint8_t b3 = (uint8_t)(b1 + factor * (b2 - b1) + 0.5f);
-
-    return r3 << 4 | g3 << 2 | b3;
-}
-
-point_t Renderer::point_lerp(point_t p1, point_t p2, float factor)
-{
-    if (factor < 0.0f)
-    {
-        factor = 0.0f;
-    }
-    if (factor > 1.0f)
-    {
-        factor = 1.0f;
-    }
-
-    float x1 = (float)p1.x;
-    float y1 = (float)p1.y;
-
-    float x2 = (float)p2.x;
-    float y2 = (float)p2.y;
-
-    int x = (int)(x1 + factor * (x2 - x1) + 0.5f);
-    int y = (int)(x1 + factor * (x2 - x1) + 0.5f);
-
-    return {x = x, y = y};
 }
 
 void Renderer::anim_set_none(animation_t *anim)
@@ -213,7 +166,7 @@ void Renderer::ui_main_grid_draw(float dt)
     _ui_main_grid_animating = still_animating;
 }
 
-void Renderer::ui_shape_draw(ui_shape_t *ui_shape, int col_ind, int origin_x, int origin_y, int cell_size, float dt)
+void Renderer::ui_shape_draw(ui_shape_t *ui_shape, int col_ind, float dt)
 {
     if (!ui_shape || ui_shape->shape.type == N)
     {
@@ -226,10 +179,10 @@ void Renderer::ui_shape_draw(ui_shape_t *ui_shape, int col_ind, int origin_x, in
         uint8_t gr = ui_shape->shape.pos.y + ui_shape->shape.offsets[i].y;
 
         rectangle_t r = {
-            origin_x + gc * cell_size,
-            origin_y + gr * cell_size,
-            cell_size,
-            cell_size,
+            X_OFFSET + gc * BLOCK_SIZE,
+            Y_OFFSET + gr * BLOCK_SIZE,
+            BLOCK_SIZE,
+            BLOCK_SIZE,
         };
 
         ui_rect_draw(r, col_ind, false, &ui_shape->anim);
@@ -243,76 +196,53 @@ void Renderer::hard_drop_trail_set(shape_t shape, coord_t from, coord_t to)
 {
     _trail_rect_count = 0;
 
-    uint8_t min_x = shape.offsets[0].x + shape.pos.x;
+    uint8_t min_x = COLS * BLOCK_SIZE;
+    uint8_t max_x = 0;
+
     for (uint8_t i = 0; i < OFFSETS_COUNT; i++)
     {
-        uint8_t new_x = shape.offsets[i].x + from.x;
+        uint8_t new_x = X_OFFSET + (shape.offsets[i].x + from.x) * BLOCK_SIZE;
+
         if (new_x < min_x)
         {
             min_x = new_x;
         }
-    }
-
-    coord_t starts[OFFSETS_COUNT];
-    coord_t ends[OFFSETS_COUNT];
-
-    for (uint8_t i = 0; i < OFFSETS_COUNT; i++)
-    {
-        starts[i] = (coord_t){-1, -1};
-        ends[i] = (coord_t){-1, -1};
-    }
-
-    for (uint8_t i = 0; i < OFFSETS_COUNT; i++)
-    {
-        int8_t x = shape.offsets[i].x + from.x;
-        int8_t yf = shape.offsets[i].y + from.y;
-        int8_t yt = shape.offsets[i].y + to.y;
-        int8_t ind = x - min_x;
-
-        if (starts[ind].x == -1)
+        if ((new_x + BLOCK_SIZE) > max_x)
         {
-            starts[ind] = (coord_t){x, yf};
-            ends[ind] = (coord_t){x, yt};
-            _trail_rect_count++;
-            continue;
-        }
-
-        if (yf < starts[ind].y)
-        {
-            starts[ind].y = yf;
-        }
-        if (yt < ends[ind].y)
-        {
-            ends[ind].y = yt;
+            max_x = new_x + BLOCK_SIZE;
         }
     }
 
-    for (uint8_t i = 0; i < _trail_rect_count; i++)
+    for (int8_t i = from.y; i < to.y; i++)
     {
-        int rx = X_OFFSET + starts[i].x * BLOCK_SIZE;
-        int ry = Y_OFFSET + starts[i].y * BLOCK_SIZE;
-        int ry2 = Y_OFFSET + ends[i].y * BLOCK_SIZE;
+        for (int j = 0; j < 8; j++)
+        {
+            int x = min_x + (random() % (max_x - min_x));
+            int y = Y_OFFSET + (i * BLOCK_SIZE) + (random() % 3);
+            int y2 = y - (random() % 10);
 
-        _trail_rects[i] = (rectangle_t){rx, ry, BLOCK_SIZE, ry2 - ry};
+            if (y2 < 0)
+            {
+                y2 = 0;
+            }
+
+            double start = y * 0.001;
+
+            particle_t p = {
+                .direction = Lerp,
+                .fade_start = 0.1 + start,
+                .fade_end = 0.250 + start,
+                .move_start = 0.0 + start,
+                .move_end = 0.250 + start,
+                .move_from = {x, y},
+                .move_to = {x, y2},
+                .col_start = piece_color(shape.type),
+                .col_end = 0,
+            };
+
+            _particles.start_effect(&p);
+        }
     }
-
-    anim_set_lerp(&_trail_anim, TRAIL_FADE_OUT_SPEED, COL_LIGHT_GREY, COL_LIGHT_GREY);
-}
-
-// Draw the hard drop trail if active.
-void Renderer::hard_drop_trail_draw(float dt)
-{
-    if (_trail_anim.type == ANIM_NONE)
-    {
-        return;
-    }
-
-    for (uint8_t i = 0; i < _trail_rect_count; i++)
-    {
-        ui_rect_draw(_trail_rects[i], COL_DARK_GREY, false, &_trail_anim);
-    }
-
-    anim_update(&_trail_anim, dt);
 }
 
 bool Renderer::event_new_shape_handle(tetris_event_t ev)
@@ -329,37 +259,19 @@ bool Renderer::event_new_shape_handle(tetris_event_t ev)
         return false;
     }
 
-    shape_t *s = &_player_next_shape.shape;
-
-    int8_t min_x = s->offsets[0].x, max_x = s->offsets[0].x;
-    int8_t min_y = s->offsets[0].y, max_y = s->offsets[0].y;
-
-    for (uint8_t i = 1; i < OFFSETS_COUNT; i++)
-    {
-        if (s->offsets[i].x < min_x)
-        {
-            min_x = s->offsets[i].x;
-        }
-        if (s->offsets[i].x > max_x)
-        {
-            max_x = s->offsets[i].x;
-        }
-        if (s->offsets[i].y < min_y)
-        {
-            min_y = s->offsets[i].y;
-        }
-        if (s->offsets[i].y > max_y)
-        {
-            max_y = s->offsets[i].y;
-        }
-    }
-
-    s->pos.x = (NEXT_GRID_SIZE - (max_x - min_x + 1)) / 2 - min_x;
-    s->pos.y = (NEXT_GRID_SIZE - (max_y - min_y + 1)) / 2 - min_y;
+    edt_job_t job = {
+        .event_type = EVENT_NEXT_SHAPE,
+        .shape_type = _player_next_shape.shape.type,
+        .game_state = _paused | _block_engine ? GAME_STATE_PAUSED : GAME_STATE_ACTIVE,
+        .cleared_rows = 0,
+        .total_rows = _lines,
+        .level = _level,
+        .score = _score,
+    };
+    edt_post(job);
 
     anim_set_lerp(&_player_active_shape.anim, SHAPE_FADE_IN_SPEED, COL_BLACK, piece_color(_player_active_shape.shape.type));
     anim_set_lerp(&_player_shadow_shape.anim, SHAPE_FADE_IN_SPEED, COL_BLACK, COL_WHITE);
-    anim_set_lerp(&_player_next_shape.anim, SHAPE_FADE_IN_SPEED, COL_BLACK, piece_color(_player_next_shape.shape.type));
 
     return true;
 }
@@ -369,6 +281,16 @@ void Renderer::event_soft_drop_handle(tetris_event_t ev)
     _player_active_shape.shape = ev.shape;
     uint32_t delta = ev.score - _score;
     _score = ev.score;
+
+    edt_job_t job = {
+        .event_type = EVENT_SCORE_UPDATE,
+        .game_state = _paused | _block_engine ? GAME_STATE_PAUSED : GAME_STATE_ACTIVE,
+        .cleared_rows = (uint8_t)ev.lines_cleared_count,
+        .total_rows = _level,
+        .level = _level,
+        .score = _score,
+    };
+    edt_post(job);
 }
 
 void Renderer::event_shift_rotate_handle(tetris_event_t ev)
@@ -386,10 +308,17 @@ bool Renderer::event_hard_drop_handle(tetris_event_t ev)
                         _player_active_shape.shape.pos,
                         _player_shadow_shape.shape.pos);
 
-    _player_active_shape.shape = ev.shape;
+    edt_job_t job = {
+        .event_type = EVENT_HARD_DROP,
+        .game_state = _paused | _block_engine ? GAME_STATE_PAUSED : GAME_STATE_ACTIVE,
+        .cleared_rows = (uint8_t)ev.lines_cleared_count,
+        .total_rows = _level,
+        .level = _level,
+        .score = ev.score,
+    };
+    edt_post(job);
 
-    //    if (!audio_muted)
-    //      PlaySound(sfx_thud);
+    _player_active_shape.shape = ev.shape;
 
     return false;
 }
@@ -400,6 +329,16 @@ bool Renderer::event_line_clear_handle(tetris_event_t ev)
     _score = ev.score;
     _level = ev.level;
     _lines = ev.lines;
+
+    edt_job_t job = {
+        .event_type = EVENT_SCORE_UPDATE,
+        .game_state = _paused | _block_engine ? GAME_STATE_PAUSED : GAME_STATE_ACTIVE,
+        .cleared_rows = (uint8_t)ev.lines_cleared_count,
+        .total_rows = _level,
+        .level = _level,
+        .score = _score,
+    };
+    edt_post(job);
 
     // Fade out cleared lines
     for (uint8_t i = 0; i < ev.lines_cleared_count; i++)
@@ -508,6 +447,8 @@ void Renderer::init()
     ui_main_grid_init();
 
     anim_set_none(&_trail_anim);
+
+    _particles.init();
 
     _player_active_shape.shape.type = N;
     _player_shadow_shape.shape.type = N;
@@ -677,8 +618,6 @@ bool Renderer::update(double now)
         }
     }
 
-    // The engine is only stepped forward when it isnt blocked and
-    // all buffered events are processed.
     ctetris_update(delta);
     return true;
 }
@@ -692,12 +631,9 @@ void Renderer::render(double time)
 
     ui_shape_draw(&_player_active_shape,
                   piece_color(_player_active_shape.shape.type),
-                  X_OFFSET,
-                  Y_OFFSET,
-                  BLOCK_SIZE,
                   time);
 
-    hard_drop_trail_draw(time);
+    _particles.update(time);
 
     _hub75->commit_frame();
 

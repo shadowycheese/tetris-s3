@@ -104,6 +104,11 @@ static void scoring_score(tetris_event_t *ev);
 
 static void endgame_or_reset(void);
 
+shape_t *ctetris_shape(shape_type_t shape)
+{
+    return shape_bag[shape];
+}
+
 void ctetris_init(void)
 {
     srand((unsigned)time(NULL));

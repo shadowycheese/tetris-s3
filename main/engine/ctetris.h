@@ -190,6 +190,9 @@ typedef struct
 extern "C"
 {
 #endif
+
+    shape_t *ctetris_shape(shape_type_t shape);
+
     void ctetris_init(void);
 
     void ctetris_input_push(input_state_t input_state);

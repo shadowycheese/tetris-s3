@@ -4,9 +4,21 @@ idf_component_register(SRCS
                         "esp/espio.c"
                         "engine/ctetris.c"
                         "engine/renderer.cpp"
+                        "engine/lerp.c"
+                        "events/edt.cpp"
+                        "assets/assets.c"
+                        "tft/tft.cpp"
+                        "tft/adafruit/Adafruit_GFX.cpp"
                        INCLUDE_DIRS 
                         "."
                         "matrix/"
                         "esp/"
                         "engine/"
-                       REQUIRES driver)
+                        "events/"
+                        "assets/"
+                        "audio/"
+                        "tft/"
+                        "tft/adafruit"
+                       REQUIRES 
+                        driver 
+                        esp_lcd)

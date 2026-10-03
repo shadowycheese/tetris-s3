@@ -2,15 +2,22 @@
 #include "esp/espio.h"
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
-#include <matrix/hub75.h>
-#include <matrix/hub75_driver.h>
-#include <engine/renderer.h>
-#include <engine/ctetris.h>
+#include "matrix/hub75.h"
+#include "matrix/hub75_driver.h"
+#include "engine/renderer.h"
+#include "engine/ui.h"
+#include "engine/ctetris.h"
+#include "events/edt.h"
+#include "tft/tft.h"
+#include "audio/audio.h"
 #include <stdio.h>
 
 Hub75Driver hub75driver;
 Hub75 hub75(&hub75driver);
 Renderer renderer(&hub75);
+TFT tft;
+Audio audio;
+UI ui(&tft, &audio);
 
 const double TICK_INC = (TICK_SIZE / 1000.0);
 
@@ -41,18 +48,20 @@ extern "C" uint32_t get_mask(gpio_num_t pin, uint32_t press_mask, uint32_t held_
 
 extern "C" void app_main(void)
 {
-    Hub75Driver::Hub75DriverConfig cfg = {
-        .clock_div_num = 10,
-        .clk_invert = false,
-        .swap_byte_order = false, //
-    };
-
-    hub75driver.init(cfg);
-
     configure_input_pin_pd(GPIO_NUM_37);
     configure_input_pin_pd(GPIO_NUM_38);
     configure_input_pin_pd(GPIO_NUM_39);
     configure_input_pin_pd(GPIO_NUM_40);
+
+    edt_init();
+
+    audio.init();
+
+    hub75driver.init();
+
+    tft.init();
+
+    ui.init();
 
     renderer.init();
 
@@ -72,11 +81,6 @@ extern "C" void app_main(void)
         mask |= get_mask(GPIO_NUM_38, 0x04, 0x08);
         mask |= get_mask(GPIO_NUM_39, 0x10, 0x20);
         mask |= get_mask(GPIO_NUM_40, 0x40, 0x80);
-
-        if (mask > 0 || _last_io > 0)
-        {
-            ESP_LOGI("GAME", "Button mask = %02X, Last = %02X", mask, _last_io);
-        }
 
         if (renderer.input(mask))
         {

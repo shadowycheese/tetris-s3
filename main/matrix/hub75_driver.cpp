@@ -44,8 +44,14 @@ void Hub75Driver::deinit()
     periph_module_disable(PERIPH_LCD_CAM_MODULE);
 }
 
-bool Hub75Driver::init(const Hub75DriverConfig &cfg)
+bool Hub75Driver::init()
 {
+    Hub75DriverConfig cfg = {
+        .clock_div_num = 10,
+        .clk_invert = false,
+        .swap_byte_order = false, //
+    };
+
     _driver_cfg = cfg;
 
     ESP_LOGI(TAG, "Initializing LCD_CAM (I8080 16-bit) + GDMA for HUB75 64x32");

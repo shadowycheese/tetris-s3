@@ -7,7 +7,9 @@
 #include <stdio.h>
 #include "ctetris.h"
 #include "game.h"
+#include "lerp.h"
 #include "matrix/hub75.h"
+#include "engine/particles.h"
 
 // Speed for animations.
 #define SHAPE_FADE_IN_SPEED 5.0f
@@ -27,20 +29,6 @@
 #define GAMEOVER_LERP_SPEED 5.0f
 
 /* [ ENUMS AND STRUCTS ] */
-typedef struct
-{
-    int x;
-    int y;
-    int w;
-    int h;
-} rectangle_t;
-
-typedef struct
-{
-    int x;
-    int y;
-} point_t;
-
 typedef enum
 {
     ANIM_NONE,      // No animations.
@@ -92,7 +80,7 @@ typedef struct
 class Renderer
 {
 public:
-    Renderer(Hub75 *hub75)
+    Renderer(Hub75 *hub75) : _particles(hub75)
     {
         _hub75 = hub75;
     }
@@ -104,6 +92,7 @@ public:
 
 private:
     Hub75 *_hub75;
+    Particles _particles;
 
     double last_t = -1.0;
 
@@ -140,7 +129,7 @@ private:
     bool _block_engine = false;
     bool _game_over = false;
 
-    int piece_color(shape_type_t t);
+    uint8_t piece_color(shape_type_t t);
 
     void anim_set_none(animation_t *anim);
 
@@ -154,11 +143,10 @@ private:
     void ui_main_grid_shape_write(shape_t shape);
     void ui_main_grid_draw(float dt);
 
-    void ui_shape_draw(ui_shape_t *ui_shape, int col_ind, int origin_x, int origin_y, int cell_size, float dt);
+    void ui_shape_draw(ui_shape_t *ui_shape, int col_ind, float dt);
     void ui_rect_draw(rectangle_t rect, uint8_t base_color, bool outline, const animation_t *anim);
 
     void hard_drop_trail_set(shape_t shape, coord_t from, coord_t to);
-    void hard_drop_trail_draw(float dt);
 
     bool event_new_shape_handle(tetris_event_t ev);
     void event_soft_drop_handle(tetris_event_t ev);
@@ -167,9 +155,6 @@ private:
     bool event_line_clear_handle(tetris_event_t ev);
 
     bool event_handle(tetris_event_t ev);
-
-    uint8_t color_lerp(uint8_t col1, uint8_t col2, float factor);
-    point_t point_lerp(point_t p1, point_t p2, float factor);
 };
 
 #endif

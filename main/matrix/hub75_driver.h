@@ -42,7 +42,7 @@ public:
     Hub75Driver();
     ~Hub75Driver();
 
-    bool init(const Hub75DriverConfig &cfg);
+    bool init();
     void deinit();
 
     void set_frame_buffer(const uint8_t *fb_64x32);
