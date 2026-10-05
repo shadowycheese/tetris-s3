@@ -256,6 +256,17 @@ bool Renderer::event_new_shape_handle(tetris_event_t ev)
     {
         _game_over = true;
         // game_over_t = 0.0f;
+
+        edt_job_t job = {
+            .event_type = EVENT_GAME_STATE,
+            .shape_type = _player_next_shape.shape.type,
+            .game_state = GAME_STATE_GAME_OVER,
+            .cleared_rows = 0,
+            .total_rows = _lines,
+            .level = _level,
+            .score = _score,
+        };
+        edt_post(job);
         return false;
     }
 
@@ -283,7 +294,7 @@ void Renderer::event_soft_drop_handle(tetris_event_t ev)
     _score = ev.score;
 
     edt_job_t job = {
-        .event_type = EVENT_SCORE_UPDATE,
+        .event_type = EVENT_SOFT_DROP,
         .game_state = _paused | _block_engine ? GAME_STATE_PAUSED : GAME_STATE_ACTIVE,
         .cleared_rows = (uint8_t)ev.lines_cleared_count,
         .total_rows = _level,
@@ -293,10 +304,26 @@ void Renderer::event_soft_drop_handle(tetris_event_t ev)
     edt_post(job);
 }
 
-void Renderer::event_shift_rotate_handle(tetris_event_t ev)
+void Renderer::event_shift_handle(tetris_event_t ev)
 {
     _player_active_shape.shape = ev.shape;
     _player_shadow_shape.shape = ctetris_shape_proj_get();
+}
+
+void Renderer::event_rotate_handle(tetris_event_t ev)
+{
+    _player_active_shape.shape = ev.shape;
+    _player_shadow_shape.shape = ctetris_shape_proj_get();
+
+    edt_job_t job = {
+        .event_type = EVENT_ROTATE,
+        .game_state = _paused | _block_engine ? GAME_STATE_PAUSED : GAME_STATE_ACTIVE,
+        .cleared_rows = (uint8_t)ev.lines_cleared_count,
+        .total_rows = _level,
+        .level = _level,
+        .score = ev.score,
+    };
+    edt_post(job);
 }
 
 bool Renderer::event_hard_drop_handle(tetris_event_t ev)
@@ -331,10 +358,10 @@ bool Renderer::event_line_clear_handle(tetris_event_t ev)
     _lines = ev.lines;
 
     edt_job_t job = {
-        .event_type = EVENT_SCORE_UPDATE,
+        .event_type = EVENT_ROW_CLEARED,
         .game_state = _paused | _block_engine ? GAME_STATE_PAUSED : GAME_STATE_ACTIVE,
         .cleared_rows = (uint8_t)ev.lines_cleared_count,
-        .total_rows = _level,
+        .total_rows = _lines,
         .level = _level,
         .score = _score,
     };
@@ -407,8 +434,11 @@ bool Renderer::event_handle(tetris_event_t ev)
         break;
 
     case CTETRIS_EVENT_SHIFT:
+        event_shift_handle(ev);
+        break;
+
     case CTETRIS_EVENT_ROTATE:
-        event_shift_rotate_handle(ev);
+        event_rotate_handle(ev);
         break;
 
     case CTETRIS_EVENT_HARD_DROP:
@@ -461,75 +491,12 @@ void Renderer::init()
     _game_over = false;
 }
 
-bool Renderer::input(uint32_t button_mask)
-{ /*
-     if (IsKeyPressed(KEY_P))
-     {
-         paused = !paused;
-         ui_badge_update(&ui_key_info_list[KB_PAUSE].ui_badge, NULL, NULL, NULL,
-                         &paused);
-     }
-
-     if (IsKeyPressed(KEY_R))
-     {
-         ui_badge_update(&ui_key_info_list[KB_RESTART].ui_badge, NULL, NULL,
-                         NULL, &(bool){true});
-         state_init();
-
-         ui_badge_update(&ui_key_info_list[KB_PAUSE].ui_badge, NULL, NULL, NULL,
-                         &paused);
-         return true;
-     }
-     else
-     {
-         ui_badge_update(&ui_key_info_list[KB_RESTART].ui_badge, NULL, NULL,
-                         NULL, &(bool){false});
-     }
-
-     if (IsKeyPressed(KEY_T))
-     {
-         prev_scheme = current_scheme;
-         current_scheme = (current_scheme + 1) % SCHEME_COUNT;
-         theme_switch_t = 0.0f;
-         ui_badge_update(&ui_key_info_list[KB_THEME].ui_badge, NULL, NULL, NULL,
-                         &(bool){true});
-     }
-     else
-     {
-         ui_badge_update(&ui_key_info_list[KB_THEME].ui_badge, NULL, NULL, NULL,
-                         &(bool){false});
-     }
-
-     if (IsKeyPressed(KEY_M))
-     {
-         audio_muted = !audio_muted;
-         ui_badge_update(&ui_key_info_list[KB_MUTE].ui_badge, NULL, NULL, NULL,
-                         &audio_muted);
-     }*/
-
-    if ((button_mask & 0xAA) == 0xAA)
-    {
-        init();
-
-        return true;
-    }
-
+bool Renderer::input(input_state_t *input_state)
+{
     if (_paused || _block_engine)
     {
         return true;
     }
-
-    // Push input to engine.
-    input_state_t input_state = {
-        .shift_left_pressed = (button_mask & 0x04) > 0,
-        .shift_left_held = (button_mask & 0x08) > 0,
-        .shift_right_pressed = (button_mask & 0x01) > 0,
-        .shift_right_held = (button_mask & 0x02) > 0,
-        .rotate_right_pressed = (button_mask & 0x10) > 0,
-        .rotate_left_pressed = false,
-        .soft_drop_held = false,
-        .hard_drop_pressed = (button_mask & 0x40) > 0,
-    };
 
     ctetris_input_push(input_state);
 

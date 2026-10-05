@@ -86,8 +86,8 @@ public:
     }
 
     void init();
-    bool input(uint32_t button_mask); // Returns false signaling game exit.
-    bool update(double now);          // Returns false signaling game over.
+    bool input(input_state_t *input_state); // Returns false signaling game exit.
+    bool update(double now);                // Returns false signaling game over.
     void render(double now);
 
 private:
@@ -150,7 +150,8 @@ private:
 
     bool event_new_shape_handle(tetris_event_t ev);
     void event_soft_drop_handle(tetris_event_t ev);
-    void event_shift_rotate_handle(tetris_event_t ev);
+    void event_rotate_handle(tetris_event_t ev);
+    void event_shift_handle(tetris_event_t ev);
     bool event_hard_drop_handle(tetris_event_t ev);
     bool event_line_clear_handle(tetris_event_t ev);
 

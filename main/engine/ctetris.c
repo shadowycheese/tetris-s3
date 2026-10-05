@@ -137,14 +137,14 @@ void ctetris_init(void)
                                 .engine_inactive = false});
 }
 
-void ctetris_input_push(input_state_t input_state)
+void ctetris_input_push(input_state_t *input_state)
 {
     if (engine_state == STATE_INACTIVE)
     {
         return;
     }
 
-    input_buffer = input_state;
+    input_buffer = *input_state;
 }
 
 void ctetris_update(double delta)

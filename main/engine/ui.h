@@ -25,9 +25,33 @@ public:
                                        commit();
 
                                        //_audio->play_440hz_tone(); //
-                                       //_audio->play(SFX_THUD_WAV, SFX_THUD_WAV_LEN); //
+                                       _audio->play(piece_landed_wav, piece_landed_wav_len); //
+                                   });
 
-                                       _audio->play(SFX_CLACK_WAV, SFX_CLACK_WAV_LEN); //
+        edt_add_game_event_handler(EVENT_SOFT_DROP, [this](edt_job_t event)
+                                   {
+                                       update_score(&event);
+
+                                       commit();
+
+                                       //_audio->play_440hz_tone(); //
+                                       //_audio->play(piece_landed_wav, piece_landed_wav_len); //
+                                   });
+
+        edt_add_game_event_handler(EVENT_ROTATE, [this](edt_job_t event)
+                                   {
+                                       update_score(&event);
+
+                                       _audio->play(rotate_piece_wav, rotate_piece_wav_len); //
+                                   });
+
+        edt_add_game_event_handler(EVENT_GAME_OVER, [this](edt_job_t event)
+                                   {
+                                       update_score(&event);
+
+                                       commit();
+
+                                       _audio->play(game_over_wav, game_over_wav_len); //
                                    });
 
         edt_add_game_event_handler(EVENT_SCORE_UPDATE, [this](edt_job_t event)
@@ -35,6 +59,22 @@ public:
                                        update_score(&event);
 
                                        commit(); //
+                                   });
+
+        edt_add_game_event_handler(EVENT_ROW_CLEARED, [this](edt_job_t event)
+                                   {
+                                       update_score(&event);
+
+                                       commit();
+
+                                       if (event.cleared_rows == 4)
+                                       {
+                                           _audio->play(line_clear_wav, line_clear_wav_len); //
+                                       }
+                                       else
+                                       {
+                                           _audio->play(tetris_4_lines_wav, tetris_4_lines_wav_len); //
+                                       } //
                                    });
 
         edt_add_game_event_handler(EVENT_NEXT_SHAPE, [this](edt_job_t event)
@@ -71,6 +111,7 @@ public:
 private:
     TFT *_tft;
     Audio *_audio;
+    int _last_level = 0;
 
     void commit()
     {
@@ -86,6 +127,16 @@ private:
         _tft->setTextColor(0xFFFF);
 
         _tft->printf("SCORE: %d", job->score);
+
+        if (_last_level != job->level)
+        {
+            if (_last_level > 0)
+            {
+                _audio->play(level_up_jingle_wav, level_up_jingle_wav_len);
+            }
+
+            _last_level = job->level;
+        }
     }
 };
 

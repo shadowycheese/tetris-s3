@@ -10,54 +10,26 @@
 #include "events/edt.h"
 #include "tft/tft.h"
 #include "audio/audio.h"
+#include "controller/controller.h"
 #include <stdio.h>
 
-Hub75Driver hub75driver;
-Hub75 hub75(&hub75driver);
+Hub75Driver hub75_driver;
+Hub75 hub75(&hub75_driver);
 Renderer renderer(&hub75);
 TFT tft;
 Audio audio;
 UI ui(&tft, &audio);
+JoyPad joy_pad;
 
 const double TICK_INC = (TICK_SIZE / 1000.0);
 
-uint32_t _last_io = 0;
-
-extern "C" uint32_t get_mask(gpio_num_t pin, uint32_t press_mask, uint32_t held_mask)
-{
-    if (gpio_get_level(pin))
-    {
-        if ((_last_io & press_mask) == press_mask)
-        {
-            _last_io |= held_mask;
-            return held_mask;
-        }
-        else
-        {
-            _last_io |= press_mask;
-            return press_mask;
-        }
-    }
-    else
-    {
-        _last_io &= ~(press_mask | held_mask);
-
-        return 0;
-    }
-}
-
 extern "C" void app_main(void)
 {
-    configure_input_pin_pd(GPIO_NUM_37);
-    configure_input_pin_pd(GPIO_NUM_38);
-    configure_input_pin_pd(GPIO_NUM_39);
-    configure_input_pin_pd(GPIO_NUM_40);
-
     edt_init();
 
     audio.init();
 
-    hub75driver.init();
+    hub75_driver.init();
 
     tft.init();
 
@@ -66,6 +38,8 @@ extern "C" void app_main(void)
     renderer.init();
 
     ctetris_init();
+
+    joy_pad.init();
 
     const TickType_t delay_period = pdMS_TO_TICKS(TICK_SIZE);
 
@@ -77,12 +51,26 @@ extern "C" void app_main(void)
     {
         uint32_t mask = 0;
 
-        mask |= get_mask(GPIO_NUM_37, 0x01, 0x02);
-        mask |= get_mask(GPIO_NUM_38, 0x04, 0x08);
-        mask |= get_mask(GPIO_NUM_39, 0x10, 0x20);
-        mask |= get_mask(GPIO_NUM_40, 0x40, 0x80);
+        button_press_type_t a = joy_pad.button_a();
+        button_press_type_t b = joy_pad.button_b();
+        button_press_type_t c = joy_pad.button_c();
+        button_press_type_t d = joy_pad.button_d();
+        direction_press_type_t lr = joy_pad.left_right();
+        direction_press_type_t ud = joy_pad.up_down();
 
-        if (renderer.input(mask))
+        // Push input to engine.
+        input_state_t input_state = {
+            .shift_left_pressed = (lr == PositivePressed),
+            .shift_left_held = (lr == PositiveHold),
+            .shift_right_pressed = (lr == NegativePressed),
+            .shift_right_held = (lr == NegativeHold),
+            .rotate_right_pressed = (a == Pressed),
+            .rotate_left_pressed = (b == Pressed),
+            .soft_drop_held = (ud == NegativeHold),
+            .hard_drop_pressed = (c == Pressed),
+        };
+
+        if (renderer.input(&input_state))
         {
             renderer.update(time);
             renderer.render(time);

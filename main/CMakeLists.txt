@@ -19,6 +19,7 @@ idf_component_register(SRCS
                         "audio/"
                         "tft/"
                         "tft/adafruit"
+                        "controller/"
                        REQUIRES 
                         driver 
                         esp_lcd)

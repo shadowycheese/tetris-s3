@@ -195,7 +195,7 @@ extern "C"
 
     void ctetris_init(void);
 
-    void ctetris_input_push(input_state_t input_state);
+    void ctetris_input_push(input_state_t *input_state);
 
     void ctetris_update(double delta);
 

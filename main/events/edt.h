@@ -8,12 +8,14 @@
 typedef enum : uint8_t
 {
     EVENT_GAME_STATE,
+    EVENT_GAME_OVER,
     EVENT_NEXT_SHAPE,
     EVENT_SCORE_UPDATE,
     EVENT_ROW_CLEARED,
     EVENT_NORMAL_DROP,
     EVENT_SOFT_DROP,
     EVENT_HARD_DROP,
+    EVENT_ROTATE,
     EVENT_COUNT,
 } game_event_type_t;
 
