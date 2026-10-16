@@ -21,5 +21,7 @@ idf_component_register(SRCS
                         "tft/adafruit"
                         "controller/"
                        REQUIRES 
-                        driver 
+                        driver
+                        nvs_flash
+                        esp_timer
                         esp_lcd)

@@ -191,11 +191,133 @@ void Renderer::ui_shape_draw(ui_shape_t *ui_shape, int col_ind, float dt)
     anim_update(&ui_shape->anim, dt);
 }
 
-// Sets up hard drop trail rectangles for the given shape and path.
+void Renderer::ui_shadow_shape_draw(ui_shape_t *ui_shape, int col_ind, float dt)
+{
+    if (!ui_shape || ui_shape->shape.type == N)
+    {
+        return;
+    }
+
+    col_ind = color_lerp(0, col_ind, 0.3);
+
+    for (uint8_t i = 0; i < OFFSETS_COUNT; i++)
+    {
+        uint8_t gc = ui_shape->shape.pos.x + ui_shape->shape.offsets[i].x;
+        uint8_t gr = ui_shape->shape.pos.y + ui_shape->shape.offsets[i].y;
+
+        for (int x = 0; x < BLOCK_SIZE; x++)
+        {
+            for (int y = 0; y < BLOCK_SIZE; y++)
+            {
+                if (((x) % 2) == ((y) % 2))
+                {
+                    _hub75->draw_pixel(X_OFFSET + (gc * BLOCK_SIZE) + x,
+                                       Y_OFFSET + (gr * BLOCK_SIZE) + y,
+                                       col_ind);
+                }
+            }
+        }
+    }
+}
+
+void Renderer::soft_drop_trail_set(shape_t shape, coord_t from)
+{
+    uint8_t min_x = COLS * BLOCK_SIZE;
+    uint8_t max_x = 0;
+
+    for (uint8_t i = 0; i < OFFSETS_COUNT; i++)
+    {
+        uint8_t new_x = X_OFFSET + (shape.offsets[i].x + from.x) * BLOCK_SIZE;
+
+        if (new_x < min_x)
+        {
+            min_x = new_x;
+        }
+        if ((new_x + BLOCK_SIZE) > max_x)
+        {
+            max_x = new_x + BLOCK_SIZE;
+        }
+    }
+
+    for (int j = 0; j < 5; j++)
+    {
+        int x = min_x + (random() % (max_x - min_x));
+        int y = Y_OFFSET + (from.y * BLOCK_SIZE) + (random() % 3);
+        int y2 = y - (random() % 4);
+
+        if (y2 < 0)
+        {
+            y2 = 0;
+        }
+
+        double start = y * 0.001;
+        double fade_adj = ((double)(random() % 256)) / 1000.0;
+
+        particle_t p = {
+            .direction = Lerp,
+            .fade_start = 0.1 + start,
+            .fade_end = 0.150 + start + start + fade_adj,
+            .move_start = 0.0 + start,
+            .move_end = 0.150 + start,
+            .move_from = {x, y},
+            .move_to = {x, y2},
+            .col_start = piece_color(shape.type),
+            .col_end = 0,
+        };
+
+        _particles.start_effect(&p);
+    }
+}
+
+void Renderer::shift_trail_set(shape_t shape, bool left, coord_t from)
+{
+    uint8_t min_x = COLS * BLOCK_SIZE;
+    uint8_t max_x = 0;
+
+    for (uint8_t i = 0; i < OFFSETS_COUNT; i++)
+    {
+        uint8_t new_x = X_OFFSET + (shape.offsets[i].x + from.x) * BLOCK_SIZE;
+
+        if (new_x < min_x)
+        {
+            min_x = new_x;
+        }
+        if ((new_x + BLOCK_SIZE) > max_x)
+        {
+            max_x = new_x + BLOCK_SIZE;
+        }
+    }
+
+    for (int j = 0; j < 5; j++)
+    {
+        int x = (left ? max_x : (min_x - 3)) + (random() % 3);
+        int y = Y_OFFSET + (from.y * BLOCK_SIZE) + (random() % 3);
+
+        int r = random() % 4;
+
+        int x2 = x + (left ? r : -r);
+
+        double start = y * 0.001;
+        double fade_adj = ((double)(random() % 256)) / 1000.0;
+
+        particle_t p = {
+            .direction = Lerp,
+            .fade_start = 0.1 + start,
+            .fade_end = 0.150 + start + start + fade_adj,
+            .move_start = 0.0 + start,
+            .move_end = 0.150 + start,
+            .move_from = {x, y},
+            .move_to = {x2, y},
+            .col_start = piece_color(shape.type),
+            .col_end = 0,
+        };
+
+        _particles.start_effect(&p);
+    }
+}
+
 void Renderer::hard_drop_trail_set(shape_t shape, coord_t from, coord_t to)
 {
-    _trail_rect_count = 0;
-
     uint8_t min_x = COLS * BLOCK_SIZE;
     uint8_t max_x = 0;
 
@@ -227,11 +349,12 @@ void Renderer::hard_drop_trail_set(shape_t shape, coord_t from, coord_t to)
             }
 
             double start = y * 0.001;
+            double fade_adj = ((double)(random() % 256)) / 1000.0;
 
             particle_t p = {
                 .direction = Lerp,
                 .fade_start = 0.1 + start,
-                .fade_end = 0.250 + start,
+                .fade_end = 0.250 + start + fade_adj,
                 .move_start = 0.0 + start,
                 .move_end = 0.250 + start,
                 .move_from = {x, y},
@@ -290,24 +413,41 @@ bool Renderer::event_new_shape_handle(tetris_event_t ev)
 void Renderer::event_soft_drop_handle(tetris_event_t ev)
 {
     _player_active_shape.shape = ev.shape;
-    uint32_t delta = ev.score - _score;
     _score = ev.score;
+
+    soft_drop_trail_set(_player_active_shape.shape,
+                        _player_active_shape.shape.pos);
 
     edt_job_t job = {
         .event_type = EVENT_SOFT_DROP,
+        .shape_type = N,
         .game_state = _paused | _block_engine ? GAME_STATE_PAUSED : GAME_STATE_ACTIVE,
         .cleared_rows = (uint8_t)ev.lines_cleared_count,
-        .total_rows = _level,
+        .total_rows = _lines,
         .level = _level,
         .score = _score,
     };
     edt_post(job);
 }
 
-void Renderer::event_shift_handle(tetris_event_t ev)
+void Renderer::event_shift_left_handle(tetris_event_t ev)
 {
     _player_active_shape.shape = ev.shape;
     _player_shadow_shape.shape = ctetris_shape_proj_get();
+
+    shift_trail_set(_player_active_shape.shape,
+                    true,
+                    _player_active_shape.shape.pos);
+}
+
+void Renderer::event_shift_right_handle(tetris_event_t ev)
+{
+    _player_active_shape.shape = ev.shape;
+    _player_shadow_shape.shape = ctetris_shape_proj_get();
+
+    shift_trail_set(_player_active_shape.shape,
+                    false,
+                    _player_active_shape.shape.pos);
 }
 
 void Renderer::event_rotate_handle(tetris_event_t ev)
@@ -317,9 +457,10 @@ void Renderer::event_rotate_handle(tetris_event_t ev)
 
     edt_job_t job = {
         .event_type = EVENT_ROTATE,
+        .shape_type = N,
         .game_state = _paused | _block_engine ? GAME_STATE_PAUSED : GAME_STATE_ACTIVE,
         .cleared_rows = (uint8_t)ev.lines_cleared_count,
-        .total_rows = _level,
+        .total_rows = _lines,
         .level = _level,
         .score = ev.score,
     };
@@ -328,7 +469,6 @@ void Renderer::event_rotate_handle(tetris_event_t ev)
 
 bool Renderer::event_hard_drop_handle(tetris_event_t ev)
 {
-    uint32_t delta = ev.score - _score;
     _score = ev.score;
 
     hard_drop_trail_set(_player_active_shape.shape,
@@ -337,9 +477,10 @@ bool Renderer::event_hard_drop_handle(tetris_event_t ev)
 
     edt_job_t job = {
         .event_type = EVENT_HARD_DROP,
+        .shape_type = N,
         .game_state = _paused | _block_engine ? GAME_STATE_PAUSED : GAME_STATE_ACTIVE,
         .cleared_rows = (uint8_t)ev.lines_cleared_count,
-        .total_rows = _level,
+        .total_rows = _lines,
         .level = _level,
         .score = ev.score,
     };
@@ -352,13 +493,13 @@ bool Renderer::event_hard_drop_handle(tetris_event_t ev)
 
 bool Renderer::event_line_clear_handle(tetris_event_t ev)
 {
-    uint32_t score_delta = ev.score - _score;
     _score = ev.score;
     _level = ev.level;
     _lines = ev.lines;
 
     edt_job_t job = {
         .event_type = EVENT_ROW_CLEARED,
+        .shape_type = N,
         .game_state = _paused | _block_engine ? GAME_STATE_PAUSED : GAME_STATE_ACTIVE,
         .cleared_rows = (uint8_t)ev.lines_cleared_count,
         .total_rows = _lines,
@@ -433,8 +574,12 @@ bool Renderer::event_handle(tetris_event_t ev)
         event_soft_drop_handle(ev);
         break;
 
-    case CTETRIS_EVENT_SHIFT:
-        event_shift_handle(ev);
+    case CTETRIS_EVENT_SHIFT_LEFT:
+        event_shift_left_handle(ev);
+        break;
+
+    case CTETRIS_EVENT_SHIFT_RIGHT:
+        event_shift_right_handle(ev);
         break;
 
     case CTETRIS_EVENT_ROTATE:
@@ -455,8 +600,6 @@ bool Renderer::event_handle(tetris_event_t ev)
         break;
 
     case CTETRIS_EVENT_LOCK_DONE:
-        //        if (!audio_muted)
-        //          PlaySound(sfx_click);
         anim_set_flash(&_player_active_shape.anim, SHAPE_FLASH_SPEED);
         _ui_main_grid_write_pending = true;
         return false;
@@ -471,12 +614,27 @@ bool Renderer::event_handle(tetris_event_t ev)
     return true;
 }
 
+void Renderer::reset()
+{
+    ui_main_grid_init();
+
+    ctetris_init();
+
+    _player_active_shape.shape.type = N;
+    _player_shadow_shape.shape.type = N;
+    _player_next_shape.shape.type = N;
+
+    _paused = false;
+    _ui_main_grid_write_pending = false;
+    _block_engine = false;
+    _line_move_pending = false;
+    _game_over = false;
+}
+
 void Renderer::init()
 {
     ctetris_init();
     ui_main_grid_init();
-
-    anim_set_none(&_trail_anim);
 
     _particles.init();
 
@@ -529,8 +687,7 @@ bool Renderer::update(double now)
     if (_block_engine)
     {
         if (_ui_main_grid_animating ||
-            (_player_active_shape.anim.type != ANIM_NONE) ||
-            (_trail_anim.type != ANIM_NONE))
+            (_player_active_shape.anim.type != ANIM_NONE))
         {
             return true;
         }
@@ -596,21 +753,15 @@ void Renderer::render(double time)
 
     ui_main_grid_draw(time);
 
-    ui_shape_draw(&_player_active_shape,
-                  piece_color(_player_active_shape.shape.type),
-                  time);
-
     _particles.update(time);
 
-    _hub75->commit_frame();
+    int col = piece_color(_player_active_shape.shape.type);
+    ui_shape_draw(&_player_active_shape,
+                  col,
+                  time);
+    ui_shadow_shape_draw(&_player_shadow_shape,
+                         col,
+                         time);
 
-    // Theme switch and game over lerp animation update.
-    /*    if (game_over && game_over_t < 1.0f)
-        {
-            game_over_t += dt * GAMEOVER_LERP_SPEED;
-            if (game_over_t > 1.0f)
-            {
-                game_over_t = 1.0f;
-            }
-        }*/
+    _hub75->commit_frame();
 }

@@ -6,7 +6,6 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include "ctetris.h"
-#include "game.h"
 #include "lerp.h"
 #include "matrix/hub75.h"
 #include "engine/particles.h"
@@ -86,6 +85,7 @@ public:
     }
 
     void init();
+    void reset();
     bool input(input_state_t *input_state); // Returns false signaling game exit.
     bool update(double now);                // Returns false signaling game over.
     void render(double now);
@@ -111,10 +111,6 @@ private:
     ui_shape_t _player_shadow_shape;
     ui_shape_t _player_next_shape;
 
-    animation_t _trail_anim;
-    rectangle_t _trail_rects[OFFSETS_COUNT];
-    uint8_t _trail_rect_count;
-
     coord_t _line_moves[ROWS];
     uint8_t _line_move_count;
     bool _line_move_pending;
@@ -129,8 +125,6 @@ private:
     bool _block_engine = false;
     bool _game_over = false;
 
-    uint8_t piece_color(shape_type_t t);
-
     void anim_set_none(animation_t *anim);
 
     void anim_set_lerp(animation_t *anim, float speed, int from, int to);
@@ -144,18 +138,24 @@ private:
     void ui_main_grid_draw(float dt);
 
     void ui_shape_draw(ui_shape_t *ui_shape, int col_ind, float dt);
+    void ui_shadow_shape_draw(ui_shape_t *ui_shape, int col_ind, float dt);
     void ui_rect_draw(rectangle_t rect, uint8_t base_color, bool outline, const animation_t *anim);
 
+    void shift_trail_set(shape_t shape, bool left, coord_t from);
+    void soft_drop_trail_set(shape_t shape, coord_t from);
     void hard_drop_trail_set(shape_t shape, coord_t from, coord_t to);
 
     bool event_new_shape_handle(tetris_event_t ev);
     void event_soft_drop_handle(tetris_event_t ev);
     void event_rotate_handle(tetris_event_t ev);
-    void event_shift_handle(tetris_event_t ev);
+    void event_shift_left_handle(tetris_event_t ev);
+    void event_shift_right_handle(tetris_event_t ev);
     bool event_hard_drop_handle(tetris_event_t ev);
     bool event_line_clear_handle(tetris_event_t ev);
 
     bool event_handle(tetris_event_t ev);
+
+    static uint8_t piece_color(shape_type_t t);
 };
 
 #endif

@@ -6,7 +6,6 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include "engine/ctetris.h"
-#include "game.h"
 #include "engine/lerp.h"
 #include "matrix/hub75.h"
 
@@ -39,7 +38,7 @@ typedef struct
     point_t current_position;
 } particle_container_t;
 
-#define NUM_PARTICLES 128
+#define NUM_PARTICLES 200
 
 class Particles
 {

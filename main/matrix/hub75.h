@@ -35,7 +35,7 @@ public:
         if (_invert)
         {
             x = x & 0x1F;
-            y = y & 0x3F;
+            y = 0x3F - (y & 0x3F);
 
             _frame_buffer[(x * PANEL_WIDTH) + y] = col;
         }

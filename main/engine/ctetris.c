@@ -39,14 +39,29 @@ typedef struct
 
 static shape_t SHAPE_O = {.type = O, .offsets = {{0, 0}, {1, 0}, {0, 1}, {1, 1}}, .pos = {0, 0}};
 static shape_t SHAPE_L = {.type = L, .offsets = {{-1, 0}, {0, 0}, {1, 0}, {1, 1}}, .pos = {0, 0}};
+static shape_t SHAPE_J = {.type = J, .offsets = {{-1, 0}, {0, 0}, {1, 0}, {-1, 1}}, .pos = {0, 0}};
 static shape_t SHAPE_I = {.type = I, .offsets = {{-1, 0}, {0, 0}, {1, 0}, {2, 0}}, .pos = {0, 0}};
 static shape_t SHAPE_T = {.type = T, .offsets = {{-1, 0}, {0, 0}, {1, 0}, {0, 1}}, .pos = {0, 0}};
 static shape_t SHAPE_S = {.type = S, .offsets = {{-1, 1}, {0, 1}, {0, 0}, {1, 0}}, .pos = {0, 0}};
-static shape_t SHAPE_J = {.type = J, .offsets = {{-1, 0}, {0, 0}, {1, 0}, {-1, 1}}, .pos = {0, 0}};
 static shape_t SHAPE_Z = {.type = Z, .offsets = {{-1, 0}, {0, 0}, {0, 1}, {1, 1}}, .pos = {0, 0}};
 
 static shape_t *shape_bag[N] = {
-    [O] = &SHAPE_O, [L] = &SHAPE_L, [J] = &SHAPE_J, [I] = &SHAPE_I, [T] = &SHAPE_T, [S] = &SHAPE_S, [Z] = &SHAPE_Z};
+    &SHAPE_O,
+    &SHAPE_L,
+    &SHAPE_J,
+    &SHAPE_I,
+    &SHAPE_T,
+    &SHAPE_S,
+    &SHAPE_Z};
+
+static shape_t *shape_fixed[N] = {
+    &SHAPE_O,
+    &SHAPE_L,
+    &SHAPE_J,
+    &SHAPE_I,
+    &SHAPE_T,
+    &SHAPE_S,
+    &SHAPE_Z};
 
 static uint8_t shape_bag_next_i;
 
@@ -106,7 +121,7 @@ static void endgame_or_reset(void);
 
 shape_t *ctetris_shape(shape_type_t shape)
 {
-    return shape_bag[shape];
+    return shape_fixed[shape];
 }
 
 void ctetris_init(void)
@@ -556,7 +571,7 @@ static bool curr_shape_shift(movement_type_t dir, bool repeat)
     if (shape_move(&curr_shape, dir, timer, delay_time))
     {
         curr_shape_shift_timer = TIMER_START;
-        event_push((tetris_event_t){.type = CTETRIS_EVENT_SHIFT,
+        event_push((tetris_event_t){.type = dir == LEFT ? CTETRIS_EVENT_SHIFT_LEFT : CTETRIS_EVENT_SHIFT_RIGHT,
                                     .shape = curr_shape});
         if (delay_time == SHIFT_DELAY_INITIAL)
         {

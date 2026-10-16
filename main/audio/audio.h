@@ -5,8 +5,8 @@
 #include <cmath>
 #include <esp_check.h>
 
-#define I2S_BCLK GPIO_NUM_1
-#define I2S_LRCK GPIO_NUM_2
+#define I2S_BCLK GPIO_NUM_2
+#define I2S_LRCK GPIO_NUM_1
 #define I2S_DOUT GPIO_NUM_42
 #define SAMPLE_RATE 44100
 #define DURATION_SEC 10
@@ -22,39 +22,32 @@ public:
         ESP_LOGI("AUDIO", "Configuring audio...");
 
         // 1. Explicitly zero-initialize channel config
-        i2s_chan_config_t chan_cfg = {
-            .id = I2S_NUM_0,
-            .role = I2S_ROLE_MASTER,
-            .dma_desc_num = 6,
-            .dma_frame_num = 240,
-            .auto_clear = true,
-        };
+        i2s_chan_config_t chan_cfg = {};
+        chan_cfg.id = I2S_NUM_0;
+        chan_cfg.role = I2S_ROLE_MASTER;
+        chan_cfg.dma_desc_num = 6;
+        chan_cfg.dma_frame_num = 240;
+        chan_cfg.auto_clear = true;
 
         _tx_chan = NULL;
         ESP_ERROR_CHECK(i2s_new_channel(&chan_cfg, &_tx_chan, NULL));
         ESP_LOGI("AUDIO", "new_channel OK");
 
         // 2. Configure std mode using explicit clock source PLL_160M
-        i2s_std_config_t cfg = {
-            .clk_cfg = {
-                .sample_rate_hz = 44100,
-                .clk_src = I2S_CLK_SRC_PLL_160M, // Explicit clock source prevents PLL lock hangs
-                .mclk_multiple = I2S_MCLK_MULTIPLE_256,
-            },
-            .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO),
-            .gpio_cfg = {
-                .mclk = I2S_GPIO_UNUSED,
-                .bclk = I2S_BCLK,
-                .ws = I2S_LRCK,
-                .dout = I2S_DOUT,
-                .din = I2S_GPIO_UNUSED,
-                .invert_flags = {
-                    .mclk_inv = false,
-                    .bclk_inv = false,
-                    .ws_inv = false,
-                },
-            },
-        };
+        i2s_std_config_t cfg = {};
+        cfg.clk_cfg = {};
+        cfg.clk_cfg.sample_rate_hz = 44100,
+        cfg.clk_cfg.clk_src = I2S_CLK_SRC_PLL_160M;
+        cfg.clk_cfg.mclk_multiple = I2S_MCLK_MULTIPLE_256;
+
+        cfg.slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO),
+        cfg.gpio_cfg = {};
+        cfg.gpio_cfg.mclk = I2S_GPIO_UNUSED;
+        cfg.gpio_cfg.bclk = I2S_BCLK;
+        cfg.gpio_cfg.ws = I2S_LRCK;
+        cfg.gpio_cfg.dout = I2S_DOUT;
+        cfg.gpio_cfg.din = I2S_GPIO_UNUSED;
+        cfg.gpio_cfg.invert_flags = {};
 
         ESP_LOGI("AUDIO", "Configuring audio std mode...");
         ESP_ERROR_CHECK(i2s_channel_init_std_mode(_tx_chan, &cfg));
@@ -62,9 +55,17 @@ public:
 
         ESP_ERROR_CHECK(i2s_channel_enable(_tx_chan));
         ESP_LOGI("AUDIO", "I2S enabled successfully!");
+
+        _buffer = (int16_t *)heap_caps_malloc(256 * 1024, MALLOC_CAP_SPIRAM);
+
+        if (_buffer == nullptr)
+        {
+            ESP_LOGE("AUDIO", "Failed to create buffer");
+        }
     }
 
-    void play(const uint8_t *wav, size_t size)
+    void
+    play(const uint8_t *wav, size_t size)
     {
         if (size < 12 ||
             memcmp(wav, "RIFF", 4) ||
@@ -108,6 +109,15 @@ public:
         {
             return;
         }
+        printf("Buffer = %08lX\n", (uint32_t)_buffer);
+
+        int16_t *src = (int16_t *)data;
+        for (int i = 0; i < data_size / 2; i++)
+        {
+            _buffer[i] = src[i] / 2;
+        }
+
+        data = (uint8_t *)_buffer;
 
         size_t written;
 
@@ -184,6 +194,10 @@ private:
     }
 
     i2s_chan_handle_t _tx_chan;
+
+    int16_t *_buffer;
+
+    float _volume = 1.0f;
 };
 
 #endif

@@ -35,7 +35,7 @@ typedef struct
     uint8_t cleared_rows;
     uint16_t total_rows;
     uint8_t level;
-    uint8_t state;
+    // uint8_t state;
     uint32_t score;
 } edt_job_t;
 

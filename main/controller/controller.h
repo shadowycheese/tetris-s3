@@ -6,9 +6,9 @@
 #include <string.h>
 
 #define I2C_ADDRESS 0x5A
-#define I2C_SDA GPIO_NUM_37
+#define I2C_SDA GPIO_NUM_39
 #define I2C_SCL GPIO_NUM_38
-#define I2C_SPEED 115200
+#define I2C_SPEED (115200 * 2)
 
 #define PRESS_DOWN 0
 #define PRESS_UP 1
@@ -24,10 +24,10 @@
 #define BUTTON_C 2
 #define BUTTON_D 3
 #define BUTTON_OK 4
-#define BUTTON_L 5
-#define BUTTON_R 6
-#define BUTTON_U 7
-#define BUTTON_D 8
+#define PAD_L 5
+#define PAD_R 6
+#define PAD_U 7
+#define PAD_D 8
 
 #define BUTTON_D_REG 0x24
 #define BUTTON_B_REG 0x23
@@ -58,25 +58,28 @@ class JoyPad
 public:
     void init()
     {
-        i2c_master_bus_config_t bus_config = {
-            .i2c_port = I2C_NUM_0,
-            .sda_io_num = I2C_SDA,
-            .scl_io_num = I2C_SCL,
-            .clk_source = I2C_CLK_SRC_DEFAULT,
-            .flags = {
-                .enable_internal_pullup = true,
-            },
-        };
+        i2c_master_bus_config_t bus_config = {};
+
+        ESP_LOGI(TAG, "Configuring I2C joypad (%02X, SDA=%d, SCL=%d)", I2C_ADDRESS, I2C_SDA, I2C_SCL);
+        bus_config.i2c_port = I2C_NUM_0;
+        bus_config.sda_io_num = I2C_SDA;
+        bus_config.scl_io_num = I2C_SCL;
+        bus_config.clk_source = I2C_CLK_SRC_DEFAULT;
+        bus_config.flags = {};
+        bus_config.flags.enable_internal_pullup = true;
 
         ESP_ERROR_CHECK(i2c_new_master_bus(&bus_config, &_bus_handle));
 
-        i2c_device_config_t dev_config = {
-            .dev_addr_length = I2C_ADDR_BIT_LEN_7,
-            .device_address = I2C_ADDRESS,
-            .scl_speed_hz = I2C_SCL,
-        };
+        ESP_LOGI(TAG, "Adding device I2C joypad (%02X @ %d)", I2C_ADDRESS, I2C_SPEED);
+
+        i2c_device_config_t dev_config = {};
+
+        dev_config.dev_addr_length = I2C_ADDR_BIT_LEN_7;
+        dev_config.device_address = I2C_ADDRESS;
+        dev_config.scl_speed_hz = I2C_SPEED;
 
         ESP_ERROR_CHECK(i2c_master_bus_add_device(_bus_handle, &dev_config, &_joystick_handle));
+        ESP_LOGI(TAG, "Controller init complete");
     }
 
     button_press_type_t button_a()
@@ -106,12 +109,12 @@ public:
 
     direction_press_type_t left_right()
     {
-        return axis(BUTTON_L, BUTTON_R, JOYSTICK_LEFT_X_REG);
+        return axis(PAD_L, PAD_R, JOYSTICK_LEFT_X_REG);
     }
 
     direction_press_type_t up_down()
     {
-        return axis(BUTTON_U, BUTTON_D, JOYSTICK_LEFT_Y_REG);
+        return axis(PAD_U, PAD_D, JOYSTICK_LEFT_Y_REG);
     }
 
     int8_t horizontal_axis()
@@ -208,7 +211,7 @@ private:
             _joystick_handle,
             write_buf, sizeof(write_buf),
             read_buf, sizeof(read_buf),
-            -1);
+            10);
 
         if (ret == ESP_OK)
         {
@@ -216,9 +219,13 @@ private:
         }
         else
         {
+            ESP_LOGE(TAG, "Failed to read register %02X", reg_addr);
+
             return -1;
         }
     }
+
+    const char *TAG = "CONTROLLER";
 };
 
 #endif

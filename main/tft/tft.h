@@ -15,10 +15,10 @@
 #include "engine/ctetris.h"
 
 #define LCD_HOST SPI2_HOST
-#define PIN_NUM_SCLK GPIO_NUM_21
-#define PIN_NUM_MOSI GPIO_NUM_47
-#define PIN_NUM_LCD_RST GPIO_NUM_48
-#define PIN_NUM_LCD_DC GPIO_NUM_45
+#define PIN_NUM_SCLK GPIO_NUM_47
+#define PIN_NUM_MOSI GPIO_NUM_21
+#define PIN_NUM_LCD_RST GPIO_NUM_45
+#define PIN_NUM_LCD_DC GPIO_NUM_48
 #define LCD_H_RES 240
 #define LCD_V_RES 240
 #define LCD_PIXEL_CLOCK_HZ (20 * 1000 * 1000) // 20 MHz
@@ -34,7 +34,7 @@ public:
     {
         buffer = (uint16_t *)heap_caps_malloc(LCD_H_RES * LCD_V_RES * sizeof(uint16_t), MALLOC_CAP_DMA);
 
-        const char *TAG = "ST7789_EXAMPLE";
+        memset(buffer, 0x0, LCD_H_RES * LCD_V_RES * sizeof(uint16_t));
 
         ESP_LOGI(TAG, "Initializing SPI bus...");
         spi_bus_config_t buscfg = {};
@@ -66,15 +66,24 @@ public:
         panel_config.rgb_endian = LCD_RGB_ENDIAN_BGR;
         panel_config.bits_per_pixel = 16;
 
+        ESP_LOGI(TAG, "Creating panel handle...");
         ESP_ERROR_CHECK(esp_lcd_new_panel_st7789(io_handle, &panel_config, &_panel_handle));
 
+        ESP_LOGI(TAG, "Panel reseting...");
         ESP_ERROR_CHECK(esp_lcd_panel_reset(_panel_handle));
+        ESP_LOGI(TAG, "Panel initialize");
         ESP_ERROR_CHECK(esp_lcd_panel_init(_panel_handle));
+        ESP_LOGI(TAG, "Panel on");
         ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(_panel_handle, true));
+        ESP_LOGI(TAG, "Panel invert colours");
         ESP_ERROR_CHECK(esp_lcd_panel_invert_color(_panel_handle, true));
+        ESP_LOGI(TAG, "Panel swap x/y");
+        ESP_ERROR_CHECK(esp_lcd_panel_swap_xy(_panel_handle, true));
+        ESP_ERROR_CHECK(esp_lcd_panel_mirror(_panel_handle, true, false));
 
-        fillRect(0, 0, 240, 240, 0x0000);
+        ESP_LOGI(TAG, "Commit default fame");
         commit();
+        ESP_LOGI(TAG, "Panel ready");
     }
 
     virtual void drawPixel(int16_t x, int16_t y, uint16_t color)
@@ -94,6 +103,8 @@ public:
 
 private:
     esp_lcd_panel_handle_t _panel_handle;
+
+    const char *TAG = "ST7789";
 };
 
 #endif
