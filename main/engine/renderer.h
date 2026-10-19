@@ -40,8 +40,8 @@ typedef enum
 typedef struct
 {
     animation_type_t type;
-    float progress; // (0.0f - 1.0f)
-    float speed;    // duration = 1/speed
+    float progress;
+    float speed;
     point_t move_from;
     point_t move_to;
     int lerp_from;

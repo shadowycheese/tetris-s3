@@ -4,6 +4,8 @@
 
 const char *EDT_TAG = "EDT";
 
+#define EDT_DBG 0
+
 class EventDispatcher
 {
 public:
@@ -52,7 +54,9 @@ public:
         {
             if (_game_event_handlers[job.event_type][i])
             {
+#if EDT_DBG
                 ESP_LOGI(EDT_TAG, "Dispatching game event %d", job.event_type);
+#endif
                 _game_event_handlers[job.event_type][i](job);
             }
             else
@@ -89,8 +93,9 @@ void edt_task(void *pvParameters)
         // Block indefinitely until ANY producer posts a job to the queue
         if (xQueueReceive(_edt_job_queue, &job, portMAX_DELAY) == pdTRUE)
         {
+#if EDT_DBG
             ESP_LOGI(EDT_TAG, "Handling event %d", job.event_type);
-
+#endif
             _event_dispatcher.dispatch_game_event(job);
         }
     }

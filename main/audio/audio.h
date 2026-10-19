@@ -64,8 +64,7 @@ public:
         }
     }
 
-    void
-    play(const uint8_t *wav, size_t size)
+    void play(const uint8_t *wav, size_t size)
     {
         if (size < 12 ||
             memcmp(wav, "RIFF", 4) ||
@@ -86,13 +85,6 @@ public:
 
             if (memcmp(chunk, "fmt ", 4) == 0)
             {
-                uint16_t format = le16(chunk + 8);
-                uint16_t channels = le16(chunk + 10);
-                uint32_t rate = le32(chunk + 12);
-                uint16_t bits = le16(chunk + 22);
-
-                printf("WAV: format=%u channels=%u rate=%lu bits=%u\n",
-                       format, channels, rate, bits);
             }
             else if (memcmp(chunk, "data", 4) == 0)
             {
@@ -109,12 +101,11 @@ public:
         {
             return;
         }
-        printf("Buffer = %08lX\n", (uint32_t)_buffer);
 
         int16_t *src = (int16_t *)data;
         for (int i = 0; i < data_size / 2; i++)
         {
-            _buffer[i] = src[i] / 4;
+            _buffer[i] = src[i] / 6;
         }
 
         data = (uint8_t *)_buffer;

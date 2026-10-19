@@ -70,13 +70,8 @@ void Renderer::anim_update(animation_t *anim, float dt)
     anim->progress += dt * anim->speed;
     if (anim->progress >= 1.0f)
     {
-        printf("Anim complete %d progress => %0.3f\n", anim->type, anim->progress);
         anim->progress = 1.0f;
         anim->type = ANIM_NONE;
-    }
-    else
-    {
-        printf("Anim %d progress => %0.3f\n", anim->type, anim->progress);
     }
 }
 
@@ -123,9 +118,7 @@ void Renderer::ui_rect_draw(rectangle_t rect, uint8_t col, bool outline, const a
         }
         else if (anim->type == ANIM_FLASH)
         {
-            printf("Color animation: %02X", col);
             col = color_lerp(col, COL_WHITE, 1.0f - anim->progress);
-            printf("==>%02X==>%02X\n", col, COL_WHITE);
         }
     }
 
@@ -756,10 +749,6 @@ bool Renderer::update(double now)
     tetris_event_t ev;
     while ((ev = ctetris_event_pop()).type != CTETRIS_EVENT_NONE)
     {
-        if ((i++ % 100) == 0)
-        {
-            printf("...");
-        }
         if (!event_handle(ev))
         {
             _block_engine = true;

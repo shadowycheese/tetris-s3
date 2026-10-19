@@ -149,14 +149,6 @@ public:
                                                yo += -min_y;
                                            }
 
-                                           printf("%d => %d,%d from %d,%d %d,%d\n", event.shape_type, xo, yo, min_x, max_x, min_y, max_y);
-                                           printf("%d =>", s->type);
-                                           for (int i = 0; i < 4; i++)
-                                           {
-                                               printf(" (%d,%d)", s->offsets[i].x, s->offsets[i].y);
-                                           }
-                                           printf("\n");
-
                                            for (uint8_t i = 0; i < OFFSETS_COUNT; i++)
                                            {
                                                uint16_t gc = xo + 40 * s->offsets[i].x;

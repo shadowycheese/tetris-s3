@@ -8,7 +8,7 @@
 #define I2C_ADDRESS 0x5A
 #define I2C_SDA GPIO_NUM_39
 #define I2C_SCL GPIO_NUM_38
-#define I2C_SPEED (115200 * 2)
+#define I2C_SPEED (115200)
 
 #define PRESS_DOWN 0
 #define PRESS_UP 1
@@ -119,12 +119,30 @@ public:
 
     int8_t horizontal_axis()
     {
-        return read_register(JOYSTICK_LEFT_X_REG);
+        uint8_t val;
+
+        if (read_register(JOYSTICK_LEFT_X_REG, &val) == ESP_OK)
+        {
+            return val;
+        }
+        else
+        {
+            return 0x80;
+        }
     }
 
     int8_t vertical_axis()
     {
-        return read_register(JOYSTICK_LEFT_Y_REG);
+        uint8_t val;
+
+        if (read_register(JOYSTICK_LEFT_Y_REG, &val) == ESP_OK)
+        {
+            return val;
+        }
+        else
+        {
+            return 0x80;
+        }
     }
 
 private:
@@ -138,7 +156,14 @@ private:
 
     direction_press_type_t axis(int neg_button, int pos_button, uint8_t reg)
     {
-        uint8_t val = read_register(reg);
+        uint8_t val;
+
+        esp_err_t err = read_register(reg, &val);
+
+        if (err != ESP_OK)
+        {
+            return Neutral;
+        }
 
         if (val < 0x5F)
         {
@@ -192,7 +217,14 @@ private:
 
     button_press_type_t button(int button, uint8_t reg)
     {
-        uint8_t val = read_register(reg);
+        uint8_t val;
+
+        esp_err_t err = read_register(reg, &val);
+
+        if (err != ESP_OK)
+        {
+            return NotPressed;
+        }
 
         bool pressed = (val == PRESS_DOWN) || (val == LONG_PRESS_START) || (val == LONG_PRESS_HOLD);
 
@@ -215,27 +247,39 @@ private:
         return NotPressed;
     }
 
-    uint8_t read_register(uint8_t reg_addr)
+    esp_err_t read_register(uint8_t reg_addr, uint8_t *value)
     {
-
         uint8_t write_buf[1] = {reg_addr};
         uint8_t read_buf[1] = {0};
+        esp_err_t ret;
 
-        esp_err_t ret = i2c_master_transmit_receive(
-            _joystick_handle,
-            write_buf, sizeof(write_buf),
-            read_buf, sizeof(read_buf),
-            10);
+        for (int i = 0; i < 5; i++)
+        {
+            ret = i2c_master_transmit_receive(
+                _joystick_handle,
+                write_buf, sizeof(write_buf),
+                read_buf, sizeof(read_buf),
+                10);
+
+            if (ret == ESP_OK)
+            {
+                break;
+            }
+
+            esp_rom_delay_us(1000);
+        }
 
         if (ret == ESP_OK)
         {
-            return read_buf[0];
+            *value = read_buf[0];
+
+            return ESP_OK;
         }
         else
         {
             ESP_LOGE(TAG, "Failed to read register %02X", reg_addr);
 
-            return -1;
+            return ret;
         }
     }
 
