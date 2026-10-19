@@ -41,7 +41,7 @@ typedef struct
 {
     animation_type_t type;
     float progress; // (0.0f - 1.0f)
-    float speed;    // duration = 1/speed.
+    float speed;    // duration = 1/speed
     point_t move_from;
     point_t move_to;
     int lerp_from;
@@ -94,7 +94,8 @@ private:
     Hub75 *_hub75;
     Particles _particles;
 
-    double last_t = -1.0;
+    float _last_time = -1.0;
+    float _last_delta = -1.0;
 
     const int X_OFFSET = 1;
     const int Y_OFFSET = 0;
@@ -146,12 +147,13 @@ private:
     void hard_drop_trail_set(shape_t shape, coord_t from, coord_t to);
 
     bool event_new_shape_handle(tetris_event_t ev);
-    void event_soft_drop_handle(tetris_event_t ev);
-    void event_rotate_handle(tetris_event_t ev);
-    void event_shift_left_handle(tetris_event_t ev);
-    void event_shift_right_handle(tetris_event_t ev);
+    bool event_soft_drop_handle(tetris_event_t ev);
+    bool event_rotate_handle(tetris_event_t ev);
+    bool event_shift_left_handle(tetris_event_t ev);
+    bool event_shift_right_handle(tetris_event_t ev);
     bool event_hard_drop_handle(tetris_event_t ev);
     bool event_line_clear_handle(tetris_event_t ev);
+    bool event_lock_handle(tetris_event_t ev);
 
     bool event_handle(tetris_event_t ev);
 

@@ -132,6 +132,7 @@ private:
     i2c_master_dev_handle_t _joystick_handle;
 
     bool _last_value[9];
+    int _last_axis_value[9];
     int8_t _left_right_hold;
     int8_t _up_down_hold;
 
@@ -139,39 +140,52 @@ private:
     {
         uint8_t val = read_register(reg);
 
-        if (val < 0x7F)
+        if (val < 0x5F)
         {
-            _last_value[pos_button] = false;
+            _last_axis_value[pos_button] = 0;
 
-            if (_last_value[neg_button])
+            if (_last_axis_value[neg_button] == 2)
             {
                 return NegativeHold;
             }
-            else
+            else if (_last_axis_value[neg_button] == 1)
             {
-                _last_value[neg_button] = true;
+                _last_axis_value[neg_button] = 2;
 
                 return NegativePressed;
             }
-        }
-        else if (val > 0x81)
-        {
-            _last_value[neg_button] = false;
+            else
+            {
+                _last_axis_value[neg_button] = 1;
 
-            if (_last_value[pos_button])
+                return Neutral;
+            }
+        }
+        else if (val > 0xA0)
+        {
+            _last_axis_value[neg_button] = 0;
+
+            if (_last_axis_value[pos_button] == 2)
             {
                 return PositiveHold;
             }
-            else
+            else if (_last_axis_value[pos_button] == 1)
             {
-                _last_value[pos_button] = true;
+                _last_axis_value[pos_button] = 2;
 
                 return PositivePressed;
             }
+            else
+            {
+
+                _last_axis_value[pos_button] = 1;
+
+                return Neutral;
+            }
         }
 
-        _last_value[pos_button] = false;
-        _last_value[neg_button] = false;
+        _last_axis_value[pos_button] = 0;
+        _last_axis_value[neg_button] = 0;
 
         return Neutral;
     }

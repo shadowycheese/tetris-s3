@@ -70,8 +70,13 @@ void Renderer::anim_update(animation_t *anim, float dt)
     anim->progress += dt * anim->speed;
     if (anim->progress >= 1.0f)
     {
+        printf("Anim complete %d progress => %0.3f\n", anim->type, anim->progress);
         anim->progress = 1.0f;
         anim->type = ANIM_NONE;
+    }
+    else
+    {
+        printf("Anim %d progress => %0.3f\n", anim->type, anim->progress);
     }
 }
 
@@ -118,7 +123,9 @@ void Renderer::ui_rect_draw(rectangle_t rect, uint8_t col, bool outline, const a
         }
         else if (anim->type == ANIM_FLASH)
         {
+            printf("Color animation: %02X", col);
             col = color_lerp(col, COL_WHITE, 1.0f - anim->progress);
+            printf("==>%02X==>%02X\n", col, COL_WHITE);
         }
     }
 
@@ -410,7 +417,7 @@ bool Renderer::event_new_shape_handle(tetris_event_t ev)
     return true;
 }
 
-void Renderer::event_soft_drop_handle(tetris_event_t ev)
+bool Renderer::event_soft_drop_handle(tetris_event_t ev)
 {
     _player_active_shape.shape = ev.shape;
     _score = ev.score;
@@ -418,19 +425,10 @@ void Renderer::event_soft_drop_handle(tetris_event_t ev)
     soft_drop_trail_set(_player_active_shape.shape,
                         _player_active_shape.shape.pos);
 
-    edt_job_t job = {
-        .event_type = EVENT_SOFT_DROP,
-        .shape_type = N,
-        .game_state = _paused | _block_engine ? GAME_STATE_PAUSED : GAME_STATE_ACTIVE,
-        .cleared_rows = (uint8_t)ev.lines_cleared_count,
-        .total_rows = _lines,
-        .level = _level,
-        .score = _score,
-    };
-    edt_post(job);
+    return true;
 }
 
-void Renderer::event_shift_left_handle(tetris_event_t ev)
+bool Renderer::event_shift_left_handle(tetris_event_t ev)
 {
     _player_active_shape.shape = ev.shape;
     _player_shadow_shape.shape = ctetris_shape_proj_get();
@@ -438,9 +436,11 @@ void Renderer::event_shift_left_handle(tetris_event_t ev)
     shift_trail_set(_player_active_shape.shape,
                     true,
                     _player_active_shape.shape.pos);
+
+    return true;
 }
 
-void Renderer::event_shift_right_handle(tetris_event_t ev)
+bool Renderer::event_shift_right_handle(tetris_event_t ev)
 {
     _player_active_shape.shape = ev.shape;
     _player_shadow_shape.shape = ctetris_shape_proj_get();
@@ -448,9 +448,11 @@ void Renderer::event_shift_right_handle(tetris_event_t ev)
     shift_trail_set(_player_active_shape.shape,
                     false,
                     _player_active_shape.shape.pos);
+
+    return true;
 }
 
-void Renderer::event_rotate_handle(tetris_event_t ev)
+bool Renderer::event_rotate_handle(tetris_event_t ev)
 {
     _player_active_shape.shape = ev.shape;
     _player_shadow_shape.shape = ctetris_shape_proj_get();
@@ -465,6 +467,7 @@ void Renderer::event_rotate_handle(tetris_event_t ev)
         .score = ev.score,
     };
     edt_post(job);
+    return true;
 }
 
 bool Renderer::event_hard_drop_handle(tetris_event_t ev)
@@ -487,6 +490,25 @@ bool Renderer::event_hard_drop_handle(tetris_event_t ev)
     edt_post(job);
 
     _player_active_shape.shape = ev.shape;
+
+    return false;
+}
+
+bool Renderer::event_lock_handle(tetris_event_t ev)
+{
+    edt_job_t job = {
+        .event_type = EVENT_LOCK,
+        .shape_type = N,
+        .game_state = _paused | _block_engine ? GAME_STATE_PAUSED : GAME_STATE_ACTIVE,
+        .cleared_rows = (uint8_t)ev.lines_cleared_count,
+        .total_rows = _lines,
+        .level = _level,
+        .score = _score,
+    };
+    edt_post(job);
+
+    anim_set_flash(&_player_active_shape.anim, SHAPE_FLASH_SPEED);
+    _ui_main_grid_write_pending = true;
 
     return false;
 }
@@ -571,20 +593,16 @@ bool Renderer::event_handle(tetris_event_t ev)
         break;
 
     case CTETRIS_EVENT_SOFT_DROP:
-        event_soft_drop_handle(ev);
-        break;
+        return event_soft_drop_handle(ev);
 
     case CTETRIS_EVENT_SHIFT_LEFT:
-        event_shift_left_handle(ev);
-        break;
+        return event_shift_left_handle(ev);
 
     case CTETRIS_EVENT_SHIFT_RIGHT:
-        event_shift_right_handle(ev);
-        break;
+        return event_shift_right_handle(ev);
 
     case CTETRIS_EVENT_ROTATE:
-        event_rotate_handle(ev);
-        break;
+        return event_rotate_handle(ev);
 
     case CTETRIS_EVENT_HARD_DROP:
         return event_hard_drop_handle(ev);
@@ -600,9 +618,7 @@ bool Renderer::event_handle(tetris_event_t ev)
         break;
 
     case CTETRIS_EVENT_LOCK_DONE:
-        anim_set_flash(&_player_active_shape.anim, SHAPE_FLASH_SPEED);
-        _ui_main_grid_write_pending = true;
-        return false;
+        return event_lock_handle(ev);
 
     case CTETRIS_EVENT_LINE_CLEAR:
         return event_line_clear_handle(ev);
@@ -665,12 +681,15 @@ bool Renderer::input(input_state_t *input_state)
 // Returns false when game over.
 bool Renderer::update(double now)
 {
-    if (last_t == -1)
+    if (_last_time == -1)
     {
-        last_t = now;
+        _last_time = now;
     }
-    double delta = now - last_t;
-    last_t = now;
+
+    double delta = now - _last_time;
+
+    _last_time = now;
+    _last_delta = delta;
 
     if (_paused)
     {
@@ -732,9 +751,15 @@ bool Renderer::update(double now)
         _block_engine = false;
     }
 
+    int i = 0;
+
     tetris_event_t ev;
     while ((ev = ctetris_event_pop()).type != CTETRIS_EVENT_NONE)
     {
+        if ((i++ % 100) == 0)
+        {
+            printf("...");
+        }
         if (!event_handle(ev))
         {
             _block_engine = true;
@@ -751,7 +776,7 @@ void Renderer::render(double time)
 {
     _hub75->clear_screen();
 
-    ui_main_grid_draw(time);
+    ui_main_grid_draw(_last_delta);
 
     _particles.update(time);
 

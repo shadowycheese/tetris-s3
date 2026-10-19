@@ -45,19 +45,16 @@ public:
                                    {
                                        update_score(&event);
 
-                                       commit();
-
-                                       _audio->play(piece_landed_wav, piece_landed_wav_len); //
+                                       commit(); //
                                    });
 
-        edt_add_game_event_handler(EVENT_SOFT_DROP, [this](edt_job_t event)
+        edt_add_game_event_handler(EVENT_LOCK, [this](edt_job_t event)
                                    {
                                        update_score(&event);
 
                                        commit();
 
-                                       //_audio->play_440hz_tone(); //
-                                       //_audio->play(piece_landed_wav, piece_landed_wav_len); //
+                                       _audio->play(piece_landed_wav, piece_landed_wav_len); //
                                    });
 
         edt_add_game_event_handler(EVENT_ROTATE, [this](edt_job_t event)

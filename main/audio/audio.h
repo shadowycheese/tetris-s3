@@ -114,7 +114,7 @@ public:
         int16_t *src = (int16_t *)data;
         for (int i = 0; i < data_size / 2; i++)
         {
-            _buffer[i] = src[i] / 2;
+            _buffer[i] = src[i] / 4;
         }
 
         data = (uint8_t *)_buffer;

@@ -24,6 +24,7 @@ UI ui(&tft, &audio);
 JoyPad joy_pad;
 
 #define TICK_SIZE (10)
+#define RESET_TICKS (25)
 
 const double TICK_INC = (TICK_SIZE / 1000.0);
 
@@ -46,19 +47,18 @@ extern "C" void app_main(void)
     renderer.init();
 
     const TickType_t delay_period = pdMS_TO_TICKS(TICK_SIZE);
+    int reset_count = 0;
 
     TickType_t last_wake_time = xTaskGetTickCount();
 
     for (double time = 0.0;; time += TICK_INC)
     {
-        // int64_t micros = esp_timer_get_time();
         button_press_type_t a = joy_pad.button_a();
         button_press_type_t b = joy_pad.button_b();
         button_press_type_t c = joy_pad.button_c();
         button_press_type_t d = joy_pad.button_d();
         direction_press_type_t lr = joy_pad.left_right();
         direction_press_type_t ud = joy_pad.up_down();
-        // double took = ((esp_timer_get_time() - micros)) / 1000.0f;
 
         input_state_t input_state = {
             .shift_left_pressed = (lr == NegativePressed),
@@ -73,10 +73,24 @@ extern "C" void app_main(void)
 
         if ((a == Hold) && (b == Hold) && (c == Hold) && (d == Hold))
         {
-            renderer.reset();
-        }
+            reset_count++;
 
-        // input_state_t input_state = {};
+            if (reset_count >= RESET_TICKS)
+            {
+                if (reset_count == RESET_TICKS)
+                {
+                    time = 0.0f;
+
+                    renderer.reset();
+                }
+
+                continue;
+            }
+        }
+        else
+        {
+            reset_count = 0;
+        }
 
         if (renderer.input(&input_state))
         {
@@ -86,10 +100,6 @@ extern "C" void app_main(void)
         else
         {
         }
-
-        // double loopTook = ((esp_timer_get_time() - micros)) / 1000.0f;
-
-        // printf("Loop took: %0.1f (controller = %0.1f)\n", loopTook, took);
 
         vTaskDelayUntil(&last_wake_time, delay_period);
     }
