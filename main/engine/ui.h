@@ -57,6 +57,12 @@ public:
                                        _audio->play(piece_landed_wav, piece_landed_wav_len); //
                                    });
 
+        edt_add_game_event_handler(EVENT_GAME_STATE, [this](edt_job_t event)
+                                   {
+                                       update_score(&event);
+
+                                       commit(); });
+
         edt_add_game_event_handler(EVENT_ROTATE, [this](edt_job_t event)
                                    {
                                        update_score(&event);
@@ -88,11 +94,11 @@ public:
 
                                        if (event.cleared_rows == 4)
                                        {
-                                           _audio->play(line_clear_wav, line_clear_wav_len); //
+                                           _audio->play(tetris_4_lines_wav, tetris_4_lines_wav_len);
                                        }
                                        else
                                        {
-                                           _audio->play(tetris_4_lines_wav, tetris_4_lines_wav_len); //
+                                           _audio->play(line_clear_wav, line_clear_wav_len);
                                        } //
                                    });
 
@@ -182,43 +188,49 @@ private:
         _tft->commit(0, 0, 240, 240);
     }
 
-    void update_score(edt_job_t *job)
+    void update_score(edt_job_t *ev)
     {
         _tft->fillRect(0, 0, 240, 80, 0x000);
         _tft->setTextSize(3);
         _tft->setCursor(4, 4);
 
-        if (job->score > _high_score)
+        if (ev->score > _high_score)
         {
-            _high_score = job->score;
+            _high_score = ev->score;
             _high_score_dirty = true;
         }
 
         _tft->setTextColor(0xFFFF);
         _tft->printf("HIGHS:%07d", _high_score);
         _tft->setCursor(4, 30);
-        _tft->printf("SCORE:%07d", job->score);
+        _tft->printf("SCORE:%07d", ev->score);
         _tft->setCursor(4, 56);
-        _tft->printf("LEVEL:%d", job->level);
+        _tft->printf("LEVEL:%d", ev->level);
 
-        if (_last_level != job->level)
+        if (_last_level != ev->level)
         {
             if (_last_level > 0)
             {
                 _audio->play(level_up_jingle_wav, level_up_jingle_wav_len);
             }
 
-            _last_level = job->level;
+            _last_level = ev->level;
         }
 
         if (_high_score_dirty)
         {
             int64_t now = esp_timer_get_time();
 
-            if (job->event_type == EVENT_GAME_OVER || ((now - _last_hs_write) > HS_DEBOUNCE))
+            if (ev->event_type == EVENT_GAME_OVER || ((now - _last_hs_write) > HS_DEBOUNCE))
             {
                 save_high_score();
             }
+        }
+
+        if (ev->game_state == GAME_STATE_PAUSED)
+        {
+            _tft->fillRect(80, 100, 24, 100, 0xEEEE);
+            _tft->fillRect(136, 100, 24, 100, 0xEEEE);
         }
     }
 

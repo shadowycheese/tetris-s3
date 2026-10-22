@@ -8,7 +8,7 @@
 #define I2C_ADDRESS 0x5A
 #define I2C_SDA GPIO_NUM_39
 #define I2C_SCL GPIO_NUM_38
-#define I2C_SPEED (115200)
+#define I2C_SPEED (115200 * 2)
 
 #define PRESS_DOWN 0
 #define PRESS_UP 1
@@ -277,7 +277,7 @@ private:
         }
         else
         {
-            ESP_LOGE(TAG, "Failed to read register %02X", reg_addr);
+            ESP_LOGE(TAG, "Failed to read register %02X: %s", reg_addr, esp_err_to_name(ret));
 
             return ret;
         }

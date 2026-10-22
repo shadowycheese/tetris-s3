@@ -28,6 +28,34 @@ JoyPad joy_pad;
 
 const double TICK_INC = (TICK_SIZE / 1000.0);
 
+class ButtonDebounce
+{
+public:
+    bool is_pressed(button_press_type_t press)
+    {
+        if (_last_value == NotPressed)
+        {
+            _last_value = press;
+
+            if (press != NotPressed)
+            {
+                return true;
+            }
+
+            return false;
+        }
+        else
+        {
+            _last_value = press;
+
+            return false;
+        }
+    }
+
+private:
+    button_press_type_t _last_value;
+};
+
 extern "C" void app_main(void)
 {
     nvs_flash_init();
@@ -48,11 +76,16 @@ extern "C" void app_main(void)
 
     const TickType_t delay_period = pdMS_TO_TICKS(TICK_SIZE);
     int reset_count = 0;
+    ButtonDebounce pause;
 
     TickType_t last_wake_time = xTaskGetTickCount();
 
+    ESP_LOGI("APP_MAIN", "Running main loop on core %d", xPortGetCoreID());
+
     for (double time = 0.0;; time += TICK_INC)
     {
+        uint64_t now = esp_timer_get_time();
+
         button_press_type_t a = joy_pad.button_a();
         button_press_type_t b = joy_pad.button_b();
         button_press_type_t c = joy_pad.button_c();
@@ -70,6 +103,28 @@ extern "C" void app_main(void)
             .soft_drop_held = (ud == NegativeHold),
             .hard_drop_pressed = (c == Pressed),
         };
+
+        if (pause.is_pressed(d))
+        {
+            if (renderer.is_paused())
+            {
+                renderer.resume();
+            }
+            else
+            {
+                renderer.pause();
+            }
+        }
+
+        if (renderer.is_paused())
+        {
+            if (a == Pressed)
+            {
+                audio.toggle_mute();
+            }
+
+            continue;
+        }
 
         if ((a == Hold) && (b == Hold) && (c == Hold) && (d == Hold))
         {
@@ -92,6 +147,8 @@ extern "C" void app_main(void)
             reset_count = 0;
         }
 
+        uint64_t io_time = esp_timer_get_time() - now;
+
         if (renderer.input(&input_state))
         {
             renderer.update(time);
@@ -99,6 +156,13 @@ extern "C" void app_main(void)
         }
         else
         {
+        }
+
+        uint64_t frame_time = (esp_timer_get_time() - now) - io_time;
+
+        if (io_time > 3000)
+        {
+            printf("Timings: IO=%0.1f, Frame=%0.1f\n", (float)io_time / 1000.0f, (float)frame_time / 1000.0f);
         }
 
         vTaskDelayUntil(&last_wake_time, delay_period);

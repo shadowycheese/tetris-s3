@@ -28,6 +28,22 @@ uint8_t Renderer::piece_color(shape_type_t t)
     }
 }
 
+void Renderer::set_paused(bool paused)
+{
+    _paused = paused;
+
+    edt_job_t job = {
+        .event_type = EVENT_GAME_STATE,
+        .shape_type = N,
+        .game_state = _paused ? GAME_STATE_PAUSED : GAME_STATE_ACTIVE,
+        .cleared_rows = 0,
+        .total_rows = _lines,
+        .level = _level,
+        .score = _score,
+    };
+    edt_post(job);
+}
+
 void Renderer::anim_set_none(animation_t *anim)
 {
     anim->type = ANIM_NONE;
@@ -396,7 +412,7 @@ bool Renderer::event_new_shape_handle(tetris_event_t ev)
     edt_job_t job = {
         .event_type = EVENT_NEXT_SHAPE,
         .shape_type = _player_next_shape.shape.type,
-        .game_state = _paused | _block_engine ? GAME_STATE_PAUSED : GAME_STATE_ACTIVE,
+        .game_state = _paused ? GAME_STATE_PAUSED : GAME_STATE_ACTIVE,
         .cleared_rows = 0,
         .total_rows = _lines,
         .level = _level,
@@ -453,7 +469,7 @@ bool Renderer::event_rotate_handle(tetris_event_t ev)
     edt_job_t job = {
         .event_type = EVENT_ROTATE,
         .shape_type = N,
-        .game_state = _paused | _block_engine ? GAME_STATE_PAUSED : GAME_STATE_ACTIVE,
+        .game_state = _paused ? GAME_STATE_PAUSED : GAME_STATE_ACTIVE,
         .cleared_rows = (uint8_t)ev.lines_cleared_count,
         .total_rows = _lines,
         .level = _level,
@@ -474,7 +490,7 @@ bool Renderer::event_hard_drop_handle(tetris_event_t ev)
     edt_job_t job = {
         .event_type = EVENT_HARD_DROP,
         .shape_type = N,
-        .game_state = _paused | _block_engine ? GAME_STATE_PAUSED : GAME_STATE_ACTIVE,
+        .game_state = _paused ? GAME_STATE_PAUSED : GAME_STATE_ACTIVE,
         .cleared_rows = (uint8_t)ev.lines_cleared_count,
         .total_rows = _lines,
         .level = _level,
@@ -492,7 +508,7 @@ bool Renderer::event_lock_handle(tetris_event_t ev)
     edt_job_t job = {
         .event_type = EVENT_LOCK,
         .shape_type = N,
-        .game_state = _paused | _block_engine ? GAME_STATE_PAUSED : GAME_STATE_ACTIVE,
+        .game_state = _paused ? GAME_STATE_PAUSED : GAME_STATE_ACTIVE,
         .cleared_rows = (uint8_t)ev.lines_cleared_count,
         .total_rows = _lines,
         .level = _level,
@@ -515,7 +531,7 @@ bool Renderer::event_line_clear_handle(tetris_event_t ev)
     edt_job_t job = {
         .event_type = EVENT_ROW_CLEARED,
         .shape_type = N,
-        .game_state = _paused | _block_engine ? GAME_STATE_PAUSED : GAME_STATE_ACTIVE,
+        .game_state = _paused ? GAME_STATE_PAUSED : GAME_STATE_ACTIVE,
         .cleared_rows = (uint8_t)ev.lines_cleared_count,
         .total_rows = _lines,
         .level = _level,
@@ -743,8 +759,6 @@ bool Renderer::update(double now)
 
         _block_engine = false;
     }
-
-    int i = 0;
 
     tetris_event_t ev;
     while ((ev = ctetris_event_pop()).type != CTETRIS_EVENT_NONE)

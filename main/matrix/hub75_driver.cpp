@@ -47,7 +47,7 @@ void Hub75Driver::deinit()
 bool Hub75Driver::init()
 {
     Hub75DriverConfig cfg = {
-        .clock_div_num = 10,
+        .clock_div_num = 200,
         .clk_invert = false,
         .swap_byte_order = false, //
     };
@@ -209,7 +209,6 @@ void Hub75Driver::build_descriptors()
 
 void Hub75Driver::encode_frame(const uint8_t *fb)
 {
-    constexpr uint8_t rgbMask = 0x3F; // bit0,1=R bit2,3=G bit4,5=B
     const uint16_t blank = (1u << BitOE);
 
     for (int g = 0; g < _rows; g++)

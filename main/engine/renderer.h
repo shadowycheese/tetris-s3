@@ -89,6 +89,18 @@ public:
     bool input(input_state_t *input_state); // Returns false signaling game exit.
     bool update(double now);                // Returns false signaling game over.
     void render(double now);
+    void pause()
+    {
+        set_paused(true);
+    }
+    void resume()
+    {
+        set_paused(false);
+    }
+    bool is_paused()
+    {
+        return _paused;
+    }
 
 private:
     Hub75 *_hub75;
@@ -120,6 +132,8 @@ private:
     uint32_t _score, _high_score;
     uint8_t _level;
     uint16_t _lines;
+
+    void set_paused(bool paused);
 
     bool _paused = false;
     bool _audio_muted = false;

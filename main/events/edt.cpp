@@ -88,6 +88,8 @@ void edt_task(void *pvParameters)
 {
     edt_job_t job;
 
+    ESP_LOGI(EDT_TAG, "Running EDT loop onidf core %d", xPortGetCoreID());
+
     for (;;)
     {
         // Block indefinitely until ANY producer posts a job to the queue

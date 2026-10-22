@@ -25,7 +25,7 @@ public:
         i2s_chan_config_t chan_cfg = {};
         chan_cfg.id = I2S_NUM_0;
         chan_cfg.role = I2S_ROLE_MASTER;
-        chan_cfg.dma_desc_num = 6;
+        chan_cfg.dma_desc_num = 24;
         chan_cfg.dma_frame_num = 240;
         chan_cfg.auto_clear = true;
 
@@ -64,8 +64,18 @@ public:
         }
     }
 
+    void toggle_mute()
+    {
+        _muted = !_muted;
+    }
+
     void play(const uint8_t *wav, size_t size)
     {
+        if (_muted)
+        {
+            return;
+        }
+
         if (size < 12 ||
             memcmp(wav, "RIFF", 4) ||
             memcmp(wav + 8, "WAVE", 4))
@@ -105,7 +115,7 @@ public:
         int16_t *src = (int16_t *)data;
         for (int i = 0; i < data_size / 2; i++)
         {
-            _buffer[i] = src[i] / 6;
+            _buffer[i] = src[i] / 8;
         }
 
         data = (uint8_t *)_buffer;
@@ -128,51 +138,6 @@ public:
         }
     }
 
-    void play_440hz_tone()
-    {
-        size_t bytes_written = 0;
-        int total_samples = SAMPLE_RATE * DURATION_SEC;
-
-        // Allocate buffer for 256 stereo frames (Left + Right, 16-bit each = 4 bytes per frame)
-        int16_t sample_buffer[DMA_BUF_SAMPLES * 2];
-
-        float phase = 0.0f;
-        float phase_increment = (2.0f * M_PI * FREQUENCY_HZ) / SAMPLE_RATE;
-
-        ESP_LOGI("AUDIO", "Playing 440Hz tone for %d seconds...", DURATION_SEC);
-
-        int samples_generated = 0;
-        while (samples_generated < total_samples)
-        {
-            int samples_this_batch = (total_samples - samples_generated > DMA_BUF_SAMPLES)
-                                         ? DMA_BUF_SAMPLES
-                                         : (total_samples - samples_generated);
-
-            // Generate 16-bit signed PCM stereo samples
-            for (int i = 0; i < samples_this_batch; i++)
-            {
-                int16_t val = (int16_t)(sinf(phase) * AMPLITUDE);
-
-                sample_buffer[i * 2] = val;     // Left Channel
-                sample_buffer[i * 2 + 1] = val; // Right Channel
-
-                phase += phase_increment;
-                if (phase >= 2.0f * M_PI)
-                {
-                    phase -= 2.0f * M_PI;
-                }
-            }
-
-            // Write buffer to I2S DMA with a 1-second timeout
-            size_t bytes_to_write = samples_this_batch * 2 * sizeof(int16_t);
-            ESP_ERROR_CHECK(i2s_channel_write(_tx_chan, sample_buffer, bytes_to_write, &bytes_written, pdMS_TO_TICKS(1000)));
-
-            samples_generated += samples_this_batch;
-        }
-
-        ESP_LOGI("AUDIO", "Tone playback finished.");
-    }
-
 private:
     uint32_t le32(const uint8_t *p)
     {
@@ -189,6 +154,8 @@ private:
     int16_t *_buffer;
 
     float _volume = 1.0f;
+
+    bool _muted = false;
 };
 
 #endif
